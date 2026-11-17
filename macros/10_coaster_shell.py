@@ -44,9 +44,10 @@ Body (rebuilt 2026-11-17):
     and a slight crown, Pillows at the rear/head end), Reading Lamps sub-group
     (wall plate + arm + shade on the solid side-wall strip aft of the last side
     window), Wardrobes sub-group (one each side of the doorway against the aft
-    face of the wall: carcass, fixed Top Panel, Base Panel over the rear arch
-    housing, double swing doors with handles and an OpenAngle each). With
-    wardrobe_wall_fit the wall moves forward so a 90+ degree swing clears the bed.
+    face of the wall; revised the same day: each runs along its side wall from the
+    wall to the bed, doors facing the centreline. Carcass cut around the rear arch
+    housing, fixed Top Panel, double swing doors with handles and an OpenAngle each,
+    hanging Rail along X). wardrobe_target_length can move the wall forward.
   * Glass panes are separate thin solids recessed inside their openings, so
     nothing pokes through the roof or the cutaway plane.
   * The cutaway view uses true planar booleans at cutaway_z (stored in the
@@ -476,11 +477,11 @@ def storage_layout(V):
 
 
 def leaf_sweep(w, t, u, standoff, edge_off, hi, step=0.5):
-    """Wardrobe door swing, relative to its hinge (the front, aft-facing corner on the hinge edge).
-    Closed, the leaf occupies x in [-t, 0] and y from 0 to u*w (u = +-1, global y direction from
-    the hinge to the meeting edge); the handle tip stands `standoff` proud of the front face,
-    `edge_off` in from the meeting edge. Opening rearwards (+X) is a turn of -u*theta about +Z,
-    the same sign the Placement expression uses. Returns [(theta, [(x, y), ...]), ...]."""
+    """Door swing in the door's own frame, relative to its hinge (front-face corner on the hinge
+    edge). Local x = the door's outward normal (the way it opens), local y = along the door face.
+    Closed, the leaf occupies x in [-t, 0] and y from 0 to u*w; the handle tip stands `standoff`
+    proud of the front face, `edge_off` in from the meeting edge. Opening turns the meeting edge
+    toward +x. Returns [(theta, [(x, y), ...]), ...]; callers map x/y onto global axes."""
     pts0 = [(-t, 0.0), (0.0, 0.0), (-t, u * w), (0.0, u * w), (standoff, u * (w - edge_off))]
     out = []
     n = max(1, int(math.ceil(hi / step)))
@@ -492,86 +493,84 @@ def leaf_sweep(w, t, u, standoff, edge_off, hi, step=0.5):
     return out
 
 
-def wardrobe_y_layout(V, iw, door_w):
-    """Across-the-bus layout of one Wardrobe (same both sides, as |y|) and its door swing reach.
-    Pure Python; bedroom_layout uses the reach to place the wall when wardrobe_wall_fit is on."""
-    yi = door_w / 2.0 + Vv(V, "wardrobe_doorway_clearance")     # inner side / inner door hinge
-    yo = iw / 2.0 - Vv(V, "wardrobe_wall_filler")                # outer door hinge
-    gap = Vv(V, "wardrobe_door_gap")
-    t = Vv(V, "wardrobe_door_thickness")
-    w = (yo - yi - gap) / 2.0
-    hi = dc(V, "wardrobe_door_max_angle", 100.0)
-    so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
-    reach = max(x for _, pts in leaf_sweep(w, t, 1, so, eo, hi) for x, _ in pts)
-    return {"yi": yi, "yo": yo, "y_wall": iw / 2.0, "width": iw / 2.0 - yi, "leaf_w": w, "t": t,
-            "gap": gap, "reach": reach, "max_angle_param": hi, "valid": w > 50.0}
-
-
 def wardrobe_layout(V, Bd):
-    """Full Wardrobe layout (x, z, depth, per-door swing limits and clearances). Pure Python.
-    Symmetric: worked on the +Y side as |y|, valid for both."""
+    """Wardrobes along each side wall, x from the aft face of the bedroom wall to the front of the
+    bed platform, doors facing the centreline. Pure Python. Symmetric: worked as |y| on the +Y
+    side; the opposite wardrobe is the mirror image, so its doors meet these at y = 0."""
     iw = Vv(V, "interior_width")
     floor = Vv(V, "floor_height")
-    Y = Bd["wardrobe_y"]
-    t, w = Y["t"], Y["leaf_w"]
-    bed_clr = Vv(V, "wardrobe_bed_clearance")
-    room = Bd["bed_x0"] - Bd["wall_x"] - t - Y["reach"] - bed_clr
-    depth_req = Vv(V, "wardrobe_depth")
-    depth = max(2.0 * Vv(V, "wardrobe_panel_thickness") + 50.0, min(depth_req, room))
-    x0 = Bd["wall_x"]
-    x1 = x0 + depth
-    xf = x1 + t                                      # door front face = hinge line
+    pt = Vv(V, "wardrobe_panel_thickness")
+    t = Vv(V, "wardrobe_door_thickness")
+    gap = Vv(V, "wardrobe_door_gap")
+    f = Vv(V, "wardrobe_end_filler")
+    margin = Vv(V, "wardrobe_swing_margin")
+    so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
+    depth_in = Vv(V, "wardrobe_internal_depth")       # side wall to the back of the doors
+    yb = iw / 2.0 - depth_in                           # |y| of the door backs (carcass front)
+    yf = yb - t                                        # |y| of the door front faces (hinge line)
+    x0, x1 = Bd["wall_x"], Bd["bed_x0"]
+    length = x1 - x0
+    w = (length - 2.0 * f - gap) / 2.0
     z_top = Bd["ceiling_z"] - Vv(V, "wardrobe_ceiling_gap")
     zt = z_top - Vv(V, "wardrobe_top_panel_height")
-    arch_band = iw / 2.0 - Vv(V, "rear_arch_width")
-    arch_in_swing = (Bd["rear_arch_x1"] > x1 and Bd["rear_arch_x0"] < xf + Y["reach"]
-                     and Y["yo"] > arch_band)
-    zb_default = (Bd["rear_arch_top_z"] + Vv(V, "wardrobe_arch_clearance")) if arch_in_swing \
-        else floor + Vv(V, "wardrobe_plinth_height")
-    zb = opt(V, "wardrobe_door_bottom_z", zb_default)
+    zb = floor + Vv(V, "wardrobe_door_floor_gap")
     hl = Vv(V, "wardrobe_handle_length")
     hz = min(max(floor + Vv(V, "wardrobe_handle_height_above_floor"), zb + hl / 2.0 + 20.0), zt - hl / 2.0 - 20.0)
-    door_half = Bd["door_w"] / 2.0
-    so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
-    margin = Vv(V, "wardrobe_swing_margin")
-    swing = {}
-    limits = {}
-    for kind, hinge, u in (("O", Y["yo"], -1), ("I", Y["yi"], 1)):
-        limit, at90, atmax = 0.0, None, None
-        ok = True
-        for th, pts in leaf_sweep(w, t, u, so, eo, Y["max_angle_param"]):
-            xs = [xf + x for x, _ in pts]
-            ys = [hinge + y for _, y in pts]
-            c = {"bed": round(Bd["bed_x0"] - max(xs), 1), "side_wall": round(iw / 2.0 - max(ys), 1),
-                 "doorway": round(min(ys) - door_half, 1)}
-            if ok and min(c.values()) >= margin:
+    hi_param = dc(V, "wardrobe_door_max_angle", 100.0)
+    swing, limits, sweeps = {}, {}, {}
+    # Forward door: hinge at x0 + filler, meeting edge aft (+X). Aft door: hinge at x1 - filler.
+    for kind, hx, ua in (("F", x0 + f, 1.0), ("A", x1 - f, -1.0)):
+        limit, at90, atmax, ok = 0.0, None, None, True
+        rows = []
+        for th, pts in leaf_sweep(w, t, 1, so, eo, hi_param):
+            xs = [hx + ua * yl for _, yl in pts]
+            ys = [yf - xl for xl, _ in pts]            # opens toward the centreline (-|y|)
+            rows.append((th, min(xs), max(xs), min(ys)))
+            c = {"wall_or_doorway": round(min(xs) - x0, 1), "bed": round(x1 - max(xs), 1),
+                 "opposite_doors": round(2.0 * min(ys), 1)}
+            if ok and min(c["wall_or_doorway"], c["bed"]) >= margin and c["opposite_doors"] >= margin:
                 limit, atmax = th, dict(c, angle=th)
             else:
                 ok = False
             if abs(th - 90.0) < 1e-6:
-                at90 = dict(c, angle=90.0)
+                at90 = dict(c, angle=90.0, open_edge_abs_y=round(min(ys), 1))
+        sweeps[kind] = rows
         limits[kind] = limit
-        swing["outer" if kind == "O" else "inner"] = {"hinge_abs_y": hinge, "limit_deg": limit,
-                                                      "at_90": at90, "at_limit": atmax,
-                                                      "reaches_90": limit >= 90.0}
-    covers = []
-    for i, (a, b) in enumerate(side_window_ranges(None, V)):
-        ov = min(b, xf) - max(a, x0)
-        if ov > 0.0:
-            covers.append({"side_window": i + 1, "x0": round(max(a, x0), 1), "x1": round(min(b, xf), 1),
-                           "overlap_mm": round(ov, 1)})
+        swing["forward" if kind == "F" else "aft"] = {"hinge_x": hx, "limit_deg": limit, "at_90": at90,
+                                                      "at_limit": atmax, "reaches_90": limit >= 90.0}
+    # The two doors of a pair, opened together: closest approach of their meeting edges.
+    pair_gap = min(a[1] - fw[2] for fw, a in zip(sweeps["F"], sweeps["A"]))
+    open_edge = min(r[3] for r in sweeps["F"] if r[0] <= 90.0 + 1e-6)
+    rail_y = opt(V, "wardrobe_rail_y", iw / 2.0 - depth_in / 2.0)
+    rail_z = z_top - pt - Vv(V, "wardrobe_rail_top_gap")
+    rail_len = length - 2.0 * pt
+    hanger = Vv(V, "hanger_width")
+    arch_top = Bd["rear_arch_top_z"]
+    arch_band = iw / 2.0 - Vv(V, "rear_arch_width")
+    arch_inside = Bd["rear_arch_x0"] < x1 and Bd["rear_arch_x1"] > x0
+    door_w = Bd["door_w"]
     return {
-        "x0": x0, "x1": x1, "front_x": xf, "depth": depth, "depth_requested": depth_req,
-        "depth_clamped": depth < depth_req - 0.5, "room_for_depth": round(room, 1),
-        "yi": Y["yi"], "yo": Y["yo"], "y_wall": iw / 2.0, "width": Y["width"], "leaf_w": w, "door_t": t,
-        "inner_width_less_panels": Y["width"] - 2.0 * Vv(V, "wardrobe_panel_thickness"),
+        "x0": x0, "x1": x1, "length": length, "internal_length": rail_len,
+        "depth_internal": depth_in, "depth_external": depth_in + t, "y_door_back": yb, "y_front": yf,
+        "y_wall": iw / 2.0, "door_t": t, "panel_t": pt, "leaf_w": w, "end_filler": f,
         "z0": floor, "z_top": z_top, "height": z_top - floor, "door_z0": zb, "door_z1": zt,
         "door_height": zt - zb, "top_panel_height": z_top - zt, "handle_z": hz,
-        "arch_in_swing": arch_in_swing, "doors_clear_arch_top_mm": round(zb - Bd["rear_arch_top_z"], 1),
-        "reach": round(Y["reach"], 1), "swing": swing, "limits_deg": limits,
-        "aisle_front_to_bed": round(Bd["bed_x0"] - xf, 1),
-        "covers_side_windows": covers,
-        "doorway_clearance": round(Y["yi"] - door_half, 1),
+        "swing": swing, "limits_deg": limits, "pair_min_gap": round(pair_gap, 1),
+        "passage_closed": round(2.0 * yf, 1),
+        "passage_one_side_open_90": round(yf + (yf - w), 1),
+        "passage_both_open_90": round(2.0 * (yf - w), 1),
+        "passage_both_open_min": round(2.0 * open_edge, 1),
+        "doorway_width": door_w, "passage_vs_doorway": round(2.0 * yf - door_w, 1),
+        "doorway_blocked_each_side": round(max(0.0, door_w / 2.0 - yf), 1),
+        "arch_inside": arch_inside, "arch_cut": arch_inside,
+        "arch_band_abs_y": [arch_band, iw / 2.0], "arch_top_z": arch_top,
+        "rail_y_abs": rail_y, "rail_z": rail_z, "rail_length": rail_len,
+        "rail_diameter": Vv(V, "wardrobe_rail_diameter"),
+        "hanger_width": hanger,
+        "hangers_fit_parallel": depth_in >= hanger + 100.0,
+        "hangers_fit_end_on": rail_len >= hanger + 30.0,
+        "hang_drop_over_arch": round(rail_z - arch_top, 1) if arch_inside else round(rail_z - floor - pt, 1),
+        "hang_drop_front_strip": round(rail_z - floor - pt, 1),
     }
 
 
@@ -596,14 +595,14 @@ def bedroom_layout(V):
     ra0 = arch_housing_x0(rear_axle, Vv(V, "rear_arch_length"))
     ra1 = ra0 + Vv(V, "rear_arch_length")
     door_w = Vv(V, "bedroom_door_opening_width")
-    WY = wardrobe_y_layout(V, iw, door_w) if bool(flag(V, "wardrobes_enabled", True)) else None
-    # Wall's rear (bedroom) face flush with the forward face of the rear arch housings, or further
-    # forward when the Wardrobes need their depth plus a full door swing clear of the bed.
-    wall_default, wardrobe_need = ra0, None
-    if WY is not None:
-        wardrobe_need = Vv(V, "wardrobe_depth") + WY["t"] + WY["reach"] + Vv(V, "wardrobe_bed_clearance")
-        if bool(flag(V, "wardrobe_wall_fit", True)):
-            wall_default = min(ra0, math.floor(bed_x0 - wardrobe_need))
+    wardrobes = bool(flag(V, "wardrobes_enabled", True))
+    # Wall's rear (bedroom) face flush with the forward face of the rear arch housings. The side
+    # Wardrobes run from the wall to the bed, so wardrobe_target_length (if set) moves the wall
+    # forward far enough to give them that length (never aft of the housings).
+    wall_default = ra0
+    target = V.get("wardrobe_target_length")
+    if wardrobes and target not in (None, ""):
+        wall_default = min(ra0, bed_x0 - float(target))
     wall_x = opt(V, "bedroom_wall_x", wall_default)
     wall_t = Vv(V, "bedroom_wall_thickness")
     walkway = bed_x0 - wall_x
@@ -643,7 +642,7 @@ def bedroom_layout(V):
         "rear_arch_x0": ra0, "rear_arch_x1": ra1,
         "wall_x": wall_x, "wall_x0": wall_x - wall_t, "wall_t": wall_t,
         "wall_x_at_arches": ra0, "wall_moved_forward_mm": round(ra0 - wall_x, 1),
-        "wardrobe_y": WY, "wardrobe_need_mm": wardrobe_need,
+        "wardrobes_enabled": wardrobes,
         "bedroom_length": B["x_inner"] - wall_x,
         "door_w": door_w, "door_h": door_h, "door_t": Vv(V, "bedroom_door_thickness"),
         "door_y_center": 0.0, "door_leaf_w": leaf_w, "door_travel": travel,
@@ -1398,14 +1397,14 @@ def add_bedroom(V, colors, groups, cavity):
         add_prop(plat, "App::PropertyFloat", "PlatformTopZ_mm", "Coaster", float(ptop),
                  "Platform top above ground, mm (nominal, verify)")
     Bd["fitout"] = add_bed_fitout(V, colors, groups, Bd)
-    Wd = add_wardrobes(V, colors, groups, Bd, cavity) if Bd.get("wardrobe_y") else None
+    Wd = add_wardrobes(V, colors, groups, Bd, cavity) if Bd.get("wardrobes_enabled") else None
     Bd["wardrobes"] = Wd
     # Bedroom floor: the walkway between the wall and the bed, minus arch and wardrobe keep-outs.
     outline, area, blen, bw, cut = usable_floor_parts(V, Bd["wall_x"], bx0)
     if Wd:
         for tag, s in zip(("L", "R"), sides(V)):
-            wy0, wy1 = span(s, Wd["yi"], iw / 2.0)
-            wx0, wx1 = max(Bd["wall_x"], Wd["x0"]), min(bx0, Wd["front_x"])
+            wy0, wy1 = span(s, Wd["y_front"], iw / 2.0)
+            wx0, wx1 = max(Bd["wall_x"], Wd["x0"]), min(bx0, Wd["x1"])
             if wx1 <= wx0:
                 continue
             a = (wx1 - wx0) * (wy1 - wy0)
@@ -1545,60 +1544,58 @@ def add_bed_fitout(V, colors, groups, Bd):
 
 
 def add_wardrobes(V, colors, groups, Bd, cavity):
-    """Two Wardrobes against the aft face of the bedroom wall, either side of the doorway, facing aft.
-    Carcass (floor to just under the ceiling, trimmed to the cabin void and around the rear arch
-    housing), fixed Top Panel, Base Panel below the doors, double swing doors with handles."""
+    """Two Wardrobes, one along each side wall from the bedroom wall to the bed, doors facing the
+    centreline. Carcass: top, bottom and end panels (the bus wall lining is the back), trimmed to
+    the cabin void and cut around the rear arch housing, whose top becomes the floor of the outer
+    part. End fillers, fixed Top Panel, double swing doors with handles, hanging Rail along X."""
     W = wardrobe_layout(V, Bd)
     iw = Vv(V, "interior_width")
     floor = Vv(V, "floor_height")
     grp = groups["GRP_WARDROBES"]
-    t, w, gap = W["door_t"], W["leaf_w"], Vv(V, "wardrobe_door_gap")
-    x0, x1, xf, z_top, zt, zb = W["x0"], W["x1"], W["front_x"], W["z_top"], W["door_z1"], W["door_z0"]
+    t, w, gap, pt, f = W["door_t"], W["leaf_w"], Vv(V, "wardrobe_door_gap"), W["panel_t"], W["end_filler"]
+    x0, x1, z_top, zt, zb = W["x0"], W["x1"], W["z_top"], W["door_z1"], W["door_z0"]
+    yb, yf = W["y_door_back"], W["y_front"]
     ra_l, ra_w, ra_h = Vv(V, "rear_arch_length"), Vv(V, "rear_arch_width"), Vv(V, "rear_arch_height")
     hl, hd = Vv(V, "wardrobe_handle_length"), Vv(V, "wardrobe_handle_diameter")
     so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
+    rd = W["rail_diameter"]
     col_c = colors.get("wardrobe_color", (0.76, 0.67, 0.53))
     col_d = colors.get("wardrobe_door_color", (0.84, 0.78, 0.67))
     col_h = colors.get("handle_color", colors.get("rim_color", (0.75, 0.75, 0.78)))
+    if W["leaf_w"] < 100.0:
+        print(f"  WARNING wardrobe doors only {W['leaf_w']:.0f} wide (walkway too short)")
     for tag, s in zip(("L", "R"), sides(V)):
         arch = box(ra_l, ra_w, ra_h, Bd["rear_arch_x0"], (iw / 2.0 - ra_w) if s > 0 else -iw / 2.0, floor)
-        y0, y1 = span(s, W["yi"], iw / 2.0)
-        carc = box(x1 - x0, y1 - y0, z_top - floor, x0, y0, floor)
-        fy0, fy1 = span(s, W["yo"], iw / 2.0)
-        carc = try_fuse(carc, box(t, fy1 - fy0, z_top - floor, x1, fy0, floor), f"wardrobe_filler_{tag}")
+        cy0, cy1 = span(s, yb, iw / 2.0)
+        outer = box(x1 - x0, cy1 - cy0, z_top - floor, x0, cy0, floor)
+        iy0, iy1 = span(s, yb - 1.0, iw / 2.0 + 1.0)
+        inner = box(x1 - x0 - 2.0 * pt, iy1 - iy0, z_top - floor - 2.0 * pt, x0 + pt, iy0, floor + pt)
+        carc = try_cut(outer, inner, f"wardrobe_hollow_{tag}")
+        fy0, fy1 = span(s, yf, yb)
+        for fx in (x0, x1 - f):                       # fixed end fillers, flush with the doors
+            carc = try_fuse(carc, box(f, fy1 - fy0, z_top - floor, fx, fy0, floor), f"wardrobe_filler_{tag}")
         carc = try_common(carc, cavity, f"wardrobe_{tag}") or carc
-        if Bd["rear_arch_x0"] < xf:
+        if W["arch_cut"]:
             carc = try_cut(carc, arch, f"wardrobe_arch_{tag}")
         add_shape(f"WRD_CARCASS_{tag}", as_single_solid(carc, f"wardrobe_{tag}"), grp, col_c)
-        ly0, ly1 = span(s, W["yi"], W["yo"])
-        top = box(t, ly1 - ly0, z_top - zt - gap, x1, ly0, zt + gap)
-        top = try_common(top, cavity, f"wardrobe_top_{tag}") or top
+        top = box(x1 - x0 - 2.0 * f - 2.0 * gap, fy1 - fy0, z_top - zt - gap, x0 + f + gap, fy0, zt + gap)
         add_shape(f"WRD_TOP_{tag}", top, grp, col_c)
-        if zb - gap - floor > 1.0:
-            base = box(t, ly1 - ly0, zb - gap - floor, x1, ly0, floor)
-            try:
-                cutb = base.cut(arch) if Bd["rear_arch_x0"] < xf else base
-                if cutb.isNull() or cutb.Volume < 1.0:
-                    cutb = None
-            except Exception as exc:
-                print(f"  wardrobe base {tag} cut failed: {exc}")
-                FAILED_OPS.append(f"wardrobe_base_{tag}")
-                cutb = None
-            if cutb is not None:
-                add_shape(f"WRD_BASE_{tag}", as_single_solid(cutb, f"wardrobe_base_{tag}"), grp, col_c)
-        for kind, hinge_abs, u_abs in (("O", W["yo"], -1), ("I", W["yi"], 1)):
-            u = s * u_abs                          # global y direction, hinge -> meeting edge
-            hy = s * hinge_abs
-            ya, yb = sorted((hy, hy + u * w))
-            door = add_shape(f"WRD_DOOR_{tag}{kind}", box(t, yb - ya, zt - zb, x1, ya, zb), grp, col_d)
-            hyc = hy + u * (w - eo)
+        rail = cylinder(rd / 2.0, W["rail_length"], x0 + pt, s * W["rail_y_abs"], W["rail_z"], vec(1, 0, 0))
+        add_shape(f"WRD_RAIL_{tag}", rail, grp, col_h)
+        for kind, hx, ua in (("F", x0 + f, 1.0), ("A", x1 - f, -1.0)):
+            xa, xb = sorted((hx, hx + ua * w))
+            door = add_shape(f"WRD_DOOR_{tag}{kind}", box(xb - xa, fy1 - fy0, zt - zb, xa, fy0, zb), grp, col_d)
+            hxc = hx + ua * (w - eo)
             hz = W["handle_z"]
-            handle = cylinder(hd / 2.0, hl, xf + so - hd / 2.0, hyc, hz - hl / 2.0, vec(0, 0, 1))
+            hy = s * (yf - so + hd / 2.0)
+            handle = cylinder(hd / 2.0, hl, hxc, hy, hz - hl / 2.0, vec(0, 0, 1))
             for dz in (-(hl / 2.0 - 15.0), hl / 2.0 - 15.0):
-                post = cylinder(hd * 0.4, so - hd / 2.0 + 1.0, xf, hyc, hz + dz, vec(1, 0, 0))
+                post = cylinder(hd * 0.4, so - hd / 2.0 + 1.0, hxc, s * yf, hz + dz, vec(0, -s, 0))
                 handle = try_fuse(handle, post, f"wardrobe_handle_{tag}{kind}")
             hobj = add_shape(f"WRD_HANDLE_{tag}{kind}", as_single_solid(handle, f"handle_{tag}{kind}"), grp, col_h)
-            make_wardrobe_door_operable(V, door, hobj, -u, xf, hy, W["limits_deg"][kind])
+            # Global turn that takes the face direction (ua, 0) toward the centreline (0, -s).
+            sgn = ua * (-s)
+            make_wardrobe_door_operable(V, door, hobj, sgn, hx, s * yf, W["limits_deg"][kind])
     return W
 
 
@@ -1731,14 +1728,14 @@ def make_bedroom_doors_operable(V, grp, leaves, signs, travel):
 
 
 def make_wardrobe_door_operable(V, door, handle, sgn, hinge_x, hinge_y, limit):
-    """Wardrobe door hinged on its front vertical edge at (hinge_x, hinge_y), opening rearwards
-    (toward the bed). The upper limit is the smaller of wardrobe_door_max_angle and the angle at
-    which the door or handle would touch the side wall, the doorway line or the bed (from
-    wardrobe_layout). The handle follows the door."""
+    """Wardrobe door hinged on its front vertical edge at (hinge_x, hinge_y), opening toward the
+    centreline. The upper limit is the smaller of wardrobe_door_max_angle and the angle at which
+    the door or handle would come within wardrobe_swing_margin of the bedroom wall, the bed or the
+    mirror-image door opposite (from wardrobe_layout). The handle follows the door."""
     n = door.Name
     hi = max(0.0, math.floor(limit * 2.0) / 2.0)
     add_control(door, "OpenAngle", dc(V, "wardrobe_door_open_angle", 0.0), 0.0, hi, 5.0,
-                f"Wardrobe door open angle, degrees (0 = closed, max {hi:g}). Hinged on its front edge, opens toward the bed.")
+                f"Wardrobe door open angle, degrees (0 = closed, max {hi:g}). Hinged on its front edge, opens toward the centreline.")
     a = f"max(0; min({hi:g}; {n}.OpenAngle))"
     expr = (f"placement(vector(0; 0; 0); rotation(vector(0; 0; 1); {sgn:.0f} * {a}); "
             f"vector({hinge_x:.3f}; {hinge_y:.3f}; 0))")
@@ -2247,12 +2244,12 @@ def display_label(name):
         return f"{_SIDE.get(name[15:], name[15:])} Reading Lamp Shade"
     if name.startswith("BED_LAMP_"):          # BED_LAMP_L -> Left Reading Lamp
         return f"{_SIDE.get(name[9:], name[9:])} Reading Lamp"
-    if name.startswith("WRD_"):               # WRD_DOOR_LO -> Left Wardrobe Outer Door
+    if name.startswith("WRD_"):               # WRD_DOOR_LF -> Left Wardrobe Forward Door
         part, t = name[4:].rsplit("_", 1)
         side = _SIDE.get(t[:1], t[:1])
-        kind = {"O": " Outer", "I": " Inner"}.get(t[1:], "")
-        word = {"CARCASS": "", "TOP": " Top Panel", "BASE": " Base Panel", "DOOR": " Door",
-                "HANDLE": " Handle"}.get(part, " " + part.title())
+        kind = {"F": " Forward", "A": " Aft"}.get(t[1:], "")
+        word = {"CARCASS": "", "TOP": " Top Panel", "DOOR": " Door", "HANDLE": " Handle",
+                "RAIL": " Rail"}.get(part, " " + part.title())
         return f"{side} Wardrobe{kind}{word}"
     if name.startswith("ARCH_"):              # ARCH_REAR_L -> Rear Left Arch Housing
         _, axle, side = name.split("_", 2)
@@ -2714,10 +2711,10 @@ def run():
                   f"(walkway {b['walkway']:.1f})")
         wd = computed.get("wardrobes")
         if wd:
-            print(f"  wardrobes: {wd['width']:.0f} W x {wd['depth']:.0f} D x {wd['height']:.0f} H, leaves "
-                  f"{wd['leaf_w']:.1f}, doors z {wd['door_z0']:.0f}-{wd['door_z1']:.0f}, swing limits "
-                  f"{wd['limits_deg']}, aisle to bed {wd['aisle_front_to_bed']:.0f}"
-                  f"{', DEPTH CLAMPED' if wd['depth_clamped'] else ''}")
+            print(f"  wardrobes: {wd['length']:.0f} L x {wd['depth_internal']:.0f} D (int) x {wd['height']:.0f} H, "
+                  f"leaves {wd['leaf_w']:.1f}, doors z {wd['door_z0']:.0f}-{wd['door_z1']:.0f}, swing limits "
+                  f"{wd['limits_deg']}, passage {wd['passage_closed']:.0f} closed / {wd['passage_both_open_90']:.0f} "
+                  f"both open (doorway {wd['doorway_width']:.0f})")
     print(f"  storage runs {computed['storage']['runs']} hinge={computed['storage']['hinge']}")
     print("build ok")
     return doc
