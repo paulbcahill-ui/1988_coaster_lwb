@@ -1,0 +1,608 @@
+{
+  "meta": {
+    "project": "1988_coaster_lwb",
+    "title": "1988 Toyota Coaster LWB (2nd gen, B20/B30 series) empty-cabin design layout",
+    "vehicle": "Toyota Coaster long body, second generation (BB20/RB20/BB30/HB30)",
+    "model_year": 1988,
+    "generation": "2nd (1982-05 to 1992)",
+    "body": "Long body (LWB), high roof design case",
+    "drive": "Right-hand drive (Australia)",
+    "condition": "All passenger seats removed; driver seat and dash retained",
+    "units": "mm",
+    "design_date": "2026-11-16",
+    "notes": [
+      "Do not use 6990 / 2030 / 2635 / 3935 mm here: those are 3rd-generation (1993-) and later Coaster figures, not 1988 B20/B30.",
+      "High-roof LWB is the design case because Australian 1988 SWB listings are 2550 mm high and late-gen (1992) AU LWB is listed at 2560 mm. Official JP long-body example is standard roof 2380 mm; high roof is +170 mm = 2550 mm. Confirm roof height on the actual bus."
+    ]
+  },
+  "coordinate_system": {
+    "origin": "Ground plane, vehicle centreline, front-most bumper face",
+    "x": "+X toward the rear",
+    "y": "+Y toward the RIGHT (offside / driver side) when sitting in the bus facing forward (toward the front, -X). -Y is the LEFT (kerb / entry) side.",
+    "z": "+Z up",
+    "units": "mm",
+    "facing_forward": "Driver looks toward the front of the bus (toward -X).",
+    "handedness_check": "Facing -X with +Z up, the driver's right-hand side is (-X) x (+Z) = +Y. So right/offside/driver = +Y, left/kerb/entry = -Y."
+  },
+  "dimensions_mm": {
+    "overall_length": {
+      "value": 6860,
+      "confidence": "confirmed",
+      "source": "Toyota official 75-year vehicle lineage, long body standard-roof grade K-BB30-MRY; also 20 May 1982 Toyota press release.",
+      "urls": [
+        "https://www.toyota-global.com/company/history_of_toyota/75years/vehicle_lineage/car/id60006636/index.html",
+        "https://global.toyota/en/detail/7714342"
+      ],
+      "notes": "CarsGuide 1992 LWB (same generation, last year) also lists 6860 mm."
+    },
+    "overall_width": {
+      "value": 1995,
+      "confidence": "confirmed",
+      "source": "Toyota official 75-year vehicle lineage (all listed 2nd-gen grades). CarsGuide 1988 SWB and 1992 LWB.",
+      "urls": [
+        "https://www.toyota-global.com/company/history_of_toyota/75years/vehicle_lineage/car/id60006636/index.html",
+        "https://www.carsguide.com.au/toyota/coaster/car-dimensions/1988",
+        "https://www.carsguide.com.au/toyota/coaster/1992"
+      ],
+      "notes": "Mirrors and aftermarket flares not included."
+    },
+    "overall_height": {
+      "value": 2550,
+      "confidence": "confirmed",
+      "source": "Toyota official: standard-body high-roof 2550 mm; text states high roof is 170 mm taller on both standard and long bodies. Therefore LWB high roof = 2380 + 170 = 2550 mm.",
+      "urls": [
+        "https://www.toyota-global.com/company/history_of_toyota/75years/vehicle_lineage/car/id60006636/index.html",
+        "https://www.carsguide.com.au/toyota/coaster/car-dimensions/1988"
+      ],
+      "notes": "Design case is high roof. CarsGuide 1992 AU LWB lists 2560 mm (late minor difference). Official long-body example grade is standard roof 2380 mm — verify roof on the actual bus. Unladen; no roof rack or A/C pod."
+    },
+    "overall_height_standard_roof": {
+      "value": 2380,
+      "confidence": "confirmed",
+      "source": "Toyota official 75-year vehicle lineage, long body standard-roof K-BB30-MRY.",
+      "urls": [
+        "https://www.toyota-global.com/company/history_of_toyota/75years/vehicle_lineage/car/id60006636/index.html"
+      ],
+      "notes": "Not used for this model. Recorded so a standard-roof variant can be built later."
+    },
+    "high_roof_delta": {
+      "value": 170,
+      "confidence": "confirmed",
+      "source": "Toyota official 75-year vehicle lineage text: high roof is 170 mm taller.",
+      "urls": [
+        "https://www.toyota-global.com/company/history_of_toyota/75years/vehicle_lineage/car/id60006636/index.html"
+      ]
+    },
+    "wheelbase": {
+      "value": 3800,
+      "confidence": "confirmed",
+      "source": "Toyota official long body; 1982 press release; CarsGuide 1988 Deluxe LWB.",
+      "urls": [
+        "https://www.toyota-global.com/company/history_of_toyota/75years/vehicle_lineage/car/id60006636/index.html",
+        "https://global.toyota/en/detail/7714342",
+        "https://www.carsguide.com.au/toyota/coaster/price/1988/deluxe-lwb"
+      ]
+    },
+    "front_overhang": {
+      "value": 1100,
+      "confidence": "nominal",
+      "source": "Not published for 2nd-gen Coaster. Nominal planning value; rear overhang is derived as overall_length - wheelbase - front_overhang.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. Third-generation long Coaster uses 1150 mm front overhang; used only as a reasonableness check, not as a source."
+    },
+    "rear_overhang": {
+      "value": 1960,
+      "confidence": "derived_nominal",
+      "source": "Computed: 6860 - 3800 - 1100. Length and wheelbase are confirmed; front overhang is nominal, so rear overhang must be verified.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE from rear axle centre to rear-most bumper face."
+    },
+    "interior_width": {
+      "value": 1800,
+      "confidence": "estimated",
+      "source": "Not published for 2nd gen. Estimated by applying later-generation wall build-up (official later Coaster overall width 2080 minus interior width 1885 = 195 mm total) to the confirmed 1995 mm 2nd-gen overall width: 1995 - 195 = 1800 mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE across the cabin between finished side walls, at mid-body, above the wheel arches. The brief's 1880 mm figure is likely optimistic on a 1995 mm-wide body (would leave only ~57 mm per wall)."
+    },
+    "interior_headroom": {
+      "value": 1780,
+      "confidence": "derived_nominal",
+      "source": "Computed: overall_height 2550 - floor_height 700 - roof_thickness 70. Floor and roof thickness are nominal.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE from finished floor to underside of roof lining at the aisle centreline. Brief suggested 1800 mm — within 20 mm of this derived value."
+    },
+    "interior_length_overall": {
+      "value": 6262,
+      "confidence": "derived_nominal",
+      "source": "Computed: overall_length - front_skin_to_cavity (nominally ~400 at the dash) - rear_wall_thickness. The model uses cavity start/end parameters; this figure is the full inside length including the cab.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. The empty passenger floor behind the driver zone is shorter — see cab_zone_length."
+    },
+    "floor_height": {
+      "value": 700,
+      "confidence": "nominal",
+      "source": "Nominal planning value from the project brief (finished floor above ground).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE at several stations (the floor may step at the entry well and over the rear axle)."
+    },
+    "cab_zone_length": {
+      "value": 1500,
+      "confidence": "nominal",
+      "source": "Nominal planning value from the project brief: driver cab / dash zone measured from the front bumper face.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE from the front bumper face to the rear of the driver-seat travel / cab bulkhead. Empty passenger floor starts aft of this station."
+    },
+    "wall_thickness": {
+      "value": 97.5,
+      "confidence": "derived_nominal",
+      "source": "Computed: (overall_width - interior_width) / 2 = (1995 - 1800) / 2.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "roof_thickness": {
+      "value": 70,
+      "confidence": "nominal",
+      "source": "Nominal roof structure + lining depth.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "floor_thickness": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Nominal finished floor sandwich depth.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "body_skirt_z": {
+      "value": 450,
+      "confidence": "nominal",
+      "source": "Nominal lower edge of the body skirt above ground (excluding bumper).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "ground_clearance": {
+      "value": 185,
+      "confidence": "confirmed_adjacent",
+      "source": "CarsGuide 1988 SWB Executive/Standard unladen ground clearance 185 mm. 1992 LWB (same generation) listed at 195 mm. 1988 LWB clearance was not published.",
+      "urls": [
+        "https://www.carsguide.com.au/toyota/coaster/car-dimensions/1988",
+        "https://www.carsguide.com.au/toyota/coaster/1992"
+      ],
+      "notes": "VERIFY BY TAPE MEASURE on the actual LWB. Not used as the floor height."
+    },
+    "tyre_od": {
+      "value": 780,
+      "confidence": "estimated",
+      "source": "Estimated overall diameter for the 7.00R16 fitment listed against the 1988 Deluxe LWB on CarsGuide (the listing puts 7.00R16x10 in the track fields, which is a tyre/rim size, not a track).",
+      "urls": [
+        "https://www.carsguide.com.au/toyota/coaster/price/1988/deluxe-lwb"
+      ],
+      "notes": "VERIFY BY TAPE MEASURE or tyre sidewall. 7.00R16 commercial tyres typically sit around 767-800 mm OD."
+    },
+    "tyre_width": {
+      "value": 178,
+      "confidence": "derived_nominal",
+      "source": "7.00 inch section width converted to mm (7.00 * 25.4).",
+      "urls": [],
+      "notes": "VERIFY on the actual tyre sidewall."
+    },
+    "rim_diameter": {
+      "value": 406.4,
+      "confidence": "derived",
+      "source": "16 inch rim: 16 * 25.4.",
+      "urls": [],
+      "notes": "From the 7.00R16 / 16 inch fitment."
+    },
+    "front_track": {
+      "value": 1650,
+      "confidence": "nominal",
+      "source": "Not published for 2nd gen. Nominal centre-to-centre front track.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "rear_track": {
+      "value": 1480,
+      "confidence": "nominal",
+      "source": "Not published for 2nd gen. Nominal centre-to-centre of each rear dual-tyre pair (dual rears typical on Deluxe LWB).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. Dual tyres are assumed for this LWB Deluxe-style chassis."
+    },
+    "dual_tyre_gap": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Nominal gap between the two tyres of a rear dual pair.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "rear_arch_length": {
+      "value": 1200,
+      "confidence": "nominal",
+      "source": "Nominal interior rear-arch keep-out length (along the vehicle), centred on the rear axle, allowing housing and suspension travel beyond the tyre diameter.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. These keep-outs are important for conversion planning."
+    },
+    "rear_arch_width": {
+      "value": 400,
+      "confidence": "estimated",
+      "source": "Estimated inward intrusion of each rear dual-arch housing from the finished interior side wall, based on nominal rear track, dual width and interior width.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE (left and right may differ slightly)."
+    },
+    "rear_arch_height": {
+      "value": 400,
+      "confidence": "nominal",
+      "source": "Nominal height of the interior rear-arch housing above the finished floor. Taller than the bare tyre protrusion to allow structure, travel and a usable keep-out for conversion.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "front_arch_length": {
+      "value": 1000,
+      "confidence": "nominal",
+      "source": "Nominal front wheel-arch keep-out length, centred on the front axle. Mostly inside the cab zone.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "front_arch_width": {
+      "value": 220,
+      "confidence": "nominal",
+      "source": "Nominal inward intrusion of each front arch from the finished interior side wall.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "front_arch_height": {
+      "value": 250,
+      "confidence": "nominal",
+      "source": "Nominal height of the front arch housing above the finished floor.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "entry_door_x": {
+      "value": 1520,
+      "confidence": "nominal",
+      "source": "Nominal front edge of the kerb-side (left) passenger entry door, just aft of the cab zone start / front wheel.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. 2nd-gen Coasters used a folding door or a glide/slide door depending on grade."
+    },
+    "entry_door_width": {
+      "value": 800,
+      "confidence": "nominal",
+      "source": "Nominal clear opening width of the passenger entry door.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "entry_door_height": {
+      "value": 1850,
+      "confidence": "nominal",
+      "source": "Nominal entry-door opening height from finished floor.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "entry_step_width": {
+      "value": 350,
+      "confidence": "nominal",
+      "source": "Nominal inward depth of the entry step well from the interior side wall.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. Subtracted from usable floor area."
+    },
+    "entry_step_length": {
+      "value": 700,
+      "confidence": "nominal",
+      "source": "Nominal length of the entry step well along the vehicle.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "driver_door_x": {
+      "value": 820,
+      "confidence": "nominal",
+      "source": "Nominal front edge of the right-hand driver door.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE. The 1988 LWB has two side doors (driver and kerb-side entry) and a rear luggage boot, no rear emergency door."
+    },
+    "driver_door_width": {
+      "value": 750,
+      "confidence": "nominal",
+      "source": "Nominal driver-door opening width.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "driver_door_height": {
+      "value": 1500,
+      "confidence": "nominal",
+      "source": "Nominal driver-door opening height from finished floor.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "window_sill_z": {
+      "value": 1620,
+      "confidence": "nominal",
+      "source": "Nominal side-window sill height above ground (about 920 mm above the finished floor).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "window_head_z": {
+      "value": 2360,
+      "confidence": "nominal",
+      "source": "Nominal side-window head height above ground.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "windscreen_sill_z": {
+      "value": 1120,
+      "confidence": "nominal",
+      "source": "Nominal windscreen lower edge above ground.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "windscreen_head_z": {
+      "value": 2420,
+      "confidence": "nominal",
+      "source": "Nominal windscreen upper edge above ground.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bumper_height": {
+      "value": 280,
+      "confidence": "nominal",
+      "source": "Nominal bumper vertical depth.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bumper_z": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Nominal bumper underside above ground.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "cavity_start_x": {
+      "value": 420,
+      "confidence": "nominal",
+      "source": "Nominal X station where the hollow cabin cavity starts (behind the front skin / engine-bay structure, in the dash zone).",
+      "urls": [],
+      "notes": "A modelling parameter; refine when the dash depth is measured."
+    },
+    "roof_header_end_x": {
+      "value": 1400,
+      "confidence": "nominal",
+      "source": "Modelling station: aft of here the high-roof is essentially level. Used so a cutaway can hide the mid/rear roof without slicing the front header/brow off the body.",
+      "urls": [],
+      "notes": "Not a tape-measure item. It locates the windscreen header / roof brow."
+    },
+    "body_front_x": {
+      "value": 60,
+      "confidence": "modelling",
+      "source": "Modelling value: lower front body face X at the skirt line. The front bumper sits proud of it from x=0, so overall length is unchanged.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py exterior body."
+    },
+    "front_rake_deg": {
+      "value": 8,
+      "confidence": "modelling",
+      "source": "Modelling value: rake of the single flat front face (lower panel and windscreen) from vertical. 2nd-gen Coaster front is near vertical.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py exterior body."
+    },
+    "rear_face_setback": {
+      "value": 15,
+      "confidence": "modelling",
+      "source": "Modelling value: rear body face sits this far ahead of overall_length so tail lamps and the rear bumper can sit proud within the overall length.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py exterior body."
+    },
+    "body_edge_radius": {
+      "value": 150,
+      "confidence": "modelling",
+      "source": "Modelling value: radius of the roof edges, front/rear vertical corners and the front roof header edge.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py exterior body."
+    },
+    "a_pillar_width": {
+      "value": 60,
+      "confidence": "modelling",
+      "source": "Modelling value: flat A-pillar strip between the corner radius and the windscreen opening.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py exterior body."
+    },
+    "windscreen_mullion": {
+      "value": 50,
+      "confidence": "modelling",
+      "source": "Modelling value: centre divider width of the two-piece windscreen.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py exterior body."
+    },
+    "boot_depth_into_cabin": {
+      "value": 1000,
+      "confidence": "nominal",
+      "source": "Internal rear boot enclosure: protrusion into the cabin from the inner rear wall, across the inside width. The usable floor ends at its front face.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "boot_height_fraction": {
+      "value": 0.4,
+      "confidence": "nominal",
+      "source": "Boot opening/lid height as a fraction of the rear panel from the floor line (floor_height) to the rear window sill (window_sill_z). The boot enclosure top's underside sits at the same height. Unitless.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY ON THE BUS."
+    },
+    "boot_opening_width": {
+      "value": 1200,
+      "confidence": "nominal",
+      "source": "Boot opening / lid width in the lower rear panel, centred. Kept inside the tail-lamp clusters.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "boot_panel_thickness": {
+      "value": 18,
+      "confidence": "modelling",
+      "source": "Modelling value: thickness of the boot enclosure front face and top.",
+      "urls": [],
+      "notes": "Used by macros/10_coaster_shell.py."
+    }
+  },
+  "au_market_notes": {
+    "doors": 2,
+    "original_seats_deluxe_lwb": 22,
+    "kerb_weight_kg_deluxe_lwb": 3170,
+    "turning_circle_m": 14.8,
+    "engine_1988_deluxe_lwb": "4.0 L 6-cyl diesel (2H), 76 kW / 241 Nm, 5-speed manual",
+    "source": "CarsGuide 1988 Toyota Coaster Deluxe (LWB)",
+    "url": "https://www.carsguide.com.au/toyota/coaster/price/1988/deluxe-lwb",
+    "doors_note": "Driver door (right/offside) and folding entry door (left/kerb). Rear has an internal luggage boot behind a top-hinged lid in the lower rear panel, not a door."
+  },
+  "style": {
+    "body_color": [
+      0.91,
+      0.9,
+      0.86
+    ],
+    "body_lower_color": [
+      0.82,
+      0.81,
+      0.77
+    ],
+    "glass_color": [
+      0.42,
+      0.62,
+      0.78
+    ],
+    "glass_alpha": 0.45,
+    "rubber_color": [
+      0.07,
+      0.07,
+      0.07
+    ],
+    "tyre_color": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "rim_color": [
+      0.72,
+      0.72,
+      0.73
+    ],
+    "bumper_color": [
+      0.18,
+      0.18,
+      0.2
+    ],
+    "floor_color": [
+      0.4,
+      0.36,
+      0.32
+    ],
+    "usable_floor_color": [
+      0.55,
+      0.73,
+      0.55
+    ],
+    "arch_color": [
+      0.58,
+      0.57,
+      0.54
+    ],
+    "seat_color": [
+      0.2,
+      0.24,
+      0.32
+    ],
+    "dash_color": [
+      0.22,
+      0.22,
+      0.23
+    ],
+    "light_front_color": [
+      0.95,
+      0.93,
+      0.8
+    ],
+    "light_rear_color": [
+      0.78,
+      0.12,
+      0.12
+    ],
+    "grille_color": [
+      0.12,
+      0.12,
+      0.13
+    ],
+    "rub_strip_color": [
+      0.25,
+      0.25,
+      0.26
+    ]
+  },
+  "export": {
+    "fcstd_name": "1988_coaster_lwb_shell.FCStd",
+    "step_name": "1988_coaster_lwb_shell.step",
+    "tessellate_deviation_mm": 12,
+    "render_max_edge_mm": 250
+  },
+  "sides": {
+    "drive": "RHD",
+    "market": "Australia",
+    "y_sign_left": -1,
+    "y_sign_right": 1,
+    "left": "-Y, kerb side (when facing forward)",
+    "right": "+Y, offside / road side (when facing forward)",
+    "entry_door": "left",
+    "step_well": "left",
+    "driver_seat": "right",
+    "steering_wheel": "right",
+    "dash_instruments": "right",
+    "driver_door": "right",
+    "notes": "Front is x=0 and the bus runs aft along +X, so the driver faces -X. With +Z up the driver's right is +Y. Left/right are from the driver's view facing the windscreen, not from a camera looking at the front of the bus. All side-dependent geometry reads these signs.",
+    "rear": "no rear door; full-width rear window, fixed rear panel, and a top-hinged boot lid in the lower rear panel opening into an internal boot enclosure"
+  },
+  "door_controls": {
+    "_note": "Initial door states and nominal mechanism values written into the FreeCAD door properties by macros/10_coaster_shell.py. After a build, change them in the property editor (Entry Door / Driver Door / Boot Lid > Door) and recompute. The PNGs and STEP show the state at build time.",
+    "entry_door_open_fraction": {
+      "value": 0.0,
+      "unit": "fraction",
+      "confidence": "nominal",
+      "source": "0 = closed, 1 = fully open."
+    },
+    "entry_door_swing_phase": {
+      "value": 0.3,
+      "unit": "fraction",
+      "confidence": "nominal",
+      "source": "Share of the open fraction used for the outward swing (0..0.3); the slide uses the rest (0.3..1)."
+    },
+    "entry_door_swing_out": {
+      "value": 80,
+      "unit": "mm",
+      "confidence": "nominal",
+      "source": "Outward offset of the swing-out plug door clear of the body. VERIFY on the bus."
+    },
+    "entry_door_slide_travel": {
+      "value": 850,
+      "unit": "mm",
+      "confidence": "nominal",
+      "source": "Slide toward the rear (+X) when fully open, along the outside of the body. VERIFY on the bus."
+    },
+    "driver_door_open_angle": {
+      "value": 0.0,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Driver door open angle, hinged on its front edge."
+    },
+    "driver_door_max_angle": {
+      "value": 70,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Driver door maximum open angle (check stop). VERIFY on the bus."
+    },
+    "boot_lid_open_angle": {
+      "value": 0.0,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Boot lid open angle, top-hinged."
+    },
+    "boot_lid_max_angle": {
+      "value": 85,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Boot lid maximum open angle. VERIFY on the bus."
+    }
+  }
+}

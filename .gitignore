@@ -1,0 +1,42 @@
+# Mirrors house-whitsundays/.gitignore conventions.
+# Generated FreeCAD outputs (rebuild with macros/10 then macros/20)
+*.FCStd
+*.FCBak
+*.FCStd1
+*.FCStd.*
+exports/*
+!exports/.gitkeep
+meshes/
+*.stl
+*.step
+*.stp
+render_cache.pkl
+usable_floor.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Editors / backups
+.idea/
+.vscode/
+_backup_*/
+macros/_backup_*/
+~$*
+
+# Google Drive artefacts
+*.gsheet
+*.gdoc
+*.gslides
+*.gform
+*.gdraw
+*.gmap
+*.gsite
+desktop.ini
+.tmp.drive*
+
+# Large/private references (decide later, as in the house repo)
+*.pdf
+*.xlsx
+*.mhtml
+*.pt
