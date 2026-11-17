@@ -864,6 +864,41 @@ def door_top(V, height_key, z_floor):
     return min(z_floor + Vv(V, height_key), Vv(V, "window_head_z"))
 
 
+DRIVER_WIN_FRAC = 0.45   # share of the driver door height taken by its window (door_panel)
+WINDOW_PILLAR = 80.0     # pillar between side windows (side_window_ranges)
+
+
+def driver_glass_profile(V):
+    """Window opening in the Driver Door leaf, same formula as door_panel(): (x0, x1, z0, z1)."""
+    floor = Vv(V, "floor_height")
+    x = Vv(V, "driver_door_x")
+    w = Vv(V, "driver_door_width")
+    z1 = door_top(V, "driver_door_height", floor)
+    win_h = (z1 - floor) * DRIVER_WIN_FRAC
+    z0 = z1 - 80.0 - win_h
+    return x + 80.0, x + w - 80.0, z0, z0 + win_h
+
+
+def passenger_window_layout(V):
+    """Fixed kerb-side cab window opposite the driver door: the Driver Door Glass profile
+    mirrored to y_sign_left (params override), trimmed to keep a pillar to the A-pillar/front
+    corner and to the entry door opening."""
+    D = body_dims(V)
+    gx0, gx1, gz0, gz1 = driver_glass_profile(V)
+    x0 = opt(V, "passenger_window_x0", gx0)
+    x1 = opt(V, "passenger_window_x1", gx1)
+    z0 = opt(V, "passenger_window_sill_z", gz0)
+    z1 = opt(V, "passenger_window_head_z", gz1)
+    pillar = opt(V, "passenger_window_min_pillar", WINDOW_PILLAR)
+    # Front limit: raked face at the window head, plus the edge radius and a pillar.
+    x_min = front_x_at(D, z1) + D["r"] + pillar
+    x_max = Vv(V, "entry_door_x") - pillar
+    out = {"profile": [gx0, gx1, gz0, gz1], "x_min": x_min, "x_max": x_max, "pillar": pillar,
+           "trimmed_front": x0 < x_min, "trimmed_rear": x1 > x_max}
+    out.update(x0=max(x0, x_min), x1=min(x1, x_max), z0=z0, z1=z1)
+    return out
+
+
 def rear_window_half_width(D):
     return D["hw"] - D["r"] - 60.0
 
@@ -912,6 +947,12 @@ def punch_openings(shell, V):
     dw = Vv(V, "driver_door_width")
     shell = try_cut(shell, side_cutter(D, s_right, dx, dx + dw, floor,
                                        door_top(V, "driver_door_height", floor)), "driver_door")
+
+    # Fixed passenger-side cab window, LEFT / kerb, opposite the driver door.
+    pw = passenger_window_layout(V)
+    if pw["x1"] - pw["x0"] > 50.0:
+        shell = try_cut(shell, side_cutter(D, s_left, pw["x0"], pw["x1"], pw["z0"], pw["z1"]),
+                        "passenger_window")
 
     # Side window band, both sides.
     sill = Vv(V, "window_sill_z")
@@ -963,6 +1004,12 @@ def add_glass_and_doors(doc, V, colors, groups):
                   box(x1 - x0 - 2 * clr, glass_t, head - sill - 2 * clr,
                       x0 + clr, side_slab_y(D, s, recess, glass_t), sill + clr))
 
+    # Passenger Side Window: fixed glass, recessed like the side windows.
+    pw = passenger_window_layout(V)
+    if pw["x1"] - pw["x0"] > 50.0:
+        glass("GLZ_PASSENGER", box(pw["x1"] - pw["x0"] - 2 * clr, glass_t, pw["z1"] - pw["z0"] - 2 * clr,
+                                   pw["x0"] + clr, side_slab_y(D, s_left, recess, glass_t), pw["z0"] + clr))
+
     # Full-width rear window.
     rw = rear_window_half_width(D) - clr
     glass("GLZ_REAR", box(glass_t, 2.0 * rw, head - sill - 2 * clr,
@@ -972,7 +1019,7 @@ def add_glass_and_doors(doc, V, colors, groups):
         y = side_slab_y(D, s, 4.0, door_t)
         h = z1 - z0
         panel = box(width - 8.0, door_t, h - 6.0, x + 4.0, y, z0 + 3.0)
-        win_h = h * win_frac
+        win_h = h * win_frac          # driver: matches driver_glass_profile()
         win_z = z1 - 80.0 - win_h
         cutter = box(width - 160.0, door_t + 20.0, win_h, x + 80.0, y - 10.0, win_z)
         panel = try_cut(panel, cutter, name + "_win")
@@ -987,7 +1034,7 @@ def add_glass_and_doors(doc, V, colors, groups):
                                     D["skirt"], door_top(V, "entry_door_height", floor), 0.55)
     dx = Vv(V, "driver_door_x")
     driver, driver_glass = door_panel("DR_DRIVER", s_right, dx, Vv(V, "driver_door_width"),
-                                      floor, door_top(V, "driver_door_height", floor), 0.45)
+                                      floor, door_top(V, "driver_door_height", floor), DRIVER_WIN_FRAC)
     make_entry_door_operable(V, entry, entry_glass, s_left)
     # Hinge: front (low-X) vertical edge of the door leaf, on its outer face.
     make_driver_door_operable(V, driver, driver_glass, s_right,
@@ -1524,6 +1571,7 @@ FIXED_LABELS = {
     "GLZ_WINDSCREEN_L": "Windscreen Left",
     "GLZ_WINDSCREEN_R": "Windscreen Right",
     "GLZ_REAR": "Rear Window",
+    "GLZ_PASSENGER": "Passenger Side Window",
     "DR_ENTRY": "Entry Door",
     "GLZ_ENTRY": "Entry Door Glass",
     "DR_DRIVER": "Driver Door",
@@ -1831,6 +1879,7 @@ def run():
     empty, area, use_len, use_w = add_floor_and_refs(V, colors, groups, computed)
     _ = empty
     st = entry_step_layout(V)
+    computed["passenger_window"] = passenger_window_layout(V)
     computed["entry_step"] = {"group": "Cabin", "x0": st["x0"], "x1": st["x1"], "width": st["width"],
                               "tread_depth": st["tread_depth"], "z_top": st["z_top"], "thickness": st["t"],
                               "well_inner_abs_y": st["well_in"], "side": "left/kerb (y_sign_left)"}

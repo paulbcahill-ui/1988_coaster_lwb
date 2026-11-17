@@ -403,6 +403,12 @@ def draw_elevation(params, V, computed, path):
         ax.add_patch(Rectangle((x, sill), win, whead - sill, fc="#6aa3c7", ec="#222", lw=0.6, zorder=4, alpha=0.7))
         x += win + pillar
 
+    # Passenger Side Window (fixed, kerb side, opposite the driver door)
+    pwin = computed.get("passenger_window")
+    if pwin:
+        ax.add_patch(Rectangle((pwin["x0"], pwin["z0"]), pwin["x1"] - pwin["x0"], pwin["z1"] - pwin["z0"],
+                               fc="#6aa3c7", ec="#222", lw=0.6, zorder=4, alpha=0.7))
+
     # Windscreen
     ax.add_patch(Polygon(
         [(220, mm(V, "windscreen_sill_z")), (1280, mm(V, "windscreen_sill_z")),

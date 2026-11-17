@@ -333,6 +333,41 @@
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
+    "passenger_window_x0": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Passenger Side Window (fixed kerb-side cab glass opposite the driver door): front edge x. null = Driver Door Glass front edge (driver_door_x + 80).",
+      "urls": [],
+      "notes": "Override with a number in mm. VERIFY BY TAPE MEASURE."
+    },
+    "passenger_window_x1": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Passenger Side Window (fixed kerb-side cab glass opposite the driver door): rear edge x. null = Driver Door Glass rear edge (driver_door_x + driver_door_width - 80), trimmed to entry_door_x - pillar.",
+      "urls": [],
+      "notes": "Override with a number in mm. VERIFY BY TAPE MEASURE."
+    },
+    "passenger_window_sill_z": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Passenger Side Window (fixed kerb-side cab glass opposite the driver door): sill z. null = Driver Door Glass sill (door head - 80 - 0.45 x door height).",
+      "urls": [],
+      "notes": "Override with a number in mm. VERIFY BY TAPE MEASURE."
+    },
+    "passenger_window_head_z": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Passenger Side Window (fixed kerb-side cab glass opposite the driver door): head z. null = Driver Door Glass head (door head - 80).",
+      "urls": [],
+      "notes": "Override with a number in mm. VERIFY BY TAPE MEASURE."
+    },
+    "passenger_window_min_pillar": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Passenger Side Window (fixed kerb-side cab glass opposite the driver door): minimum pillar to the A-pillar corner and to the entry door opening. null = 80 (side-window pillar).",
+      "urls": [],
+      "notes": "Override with a number in mm. VERIFY BY TAPE MEASURE."
+    },
     "window_sill_z": {
       "value": 1620,
       "confidence": "nominal",

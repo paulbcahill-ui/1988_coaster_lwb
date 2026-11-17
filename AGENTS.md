@@ -80,6 +80,8 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
   Do not rename Names without updating macro 20 and the expressions.
 - Groups (Labels): Exterior, Roof, Floor, Glazing, Doors, Wheels, Wheel Arches, Cab, Cabin, Reference,
   Storage, Bedroom. Entry Step is in Cabin.
+- Passenger Side Window (kerb cab glass) mirrors the Driver Door Glass profile, trimmed to keep an 80 mm
+  pillar before the entry door (x 900–1440, z 1445–2120).
 - `display_label()` / `FIXED_LABELS` in macro 10 own the mapping. Add new objects there.
 
 ## 7. Operable doors
