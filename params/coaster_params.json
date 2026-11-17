@@ -819,16 +819,16 @@
     "bedroom_walkway": {
       "value": 600,
       "confidence": "nominal",
-      "source": "Bedroom: target walkway between the wall and the end of the bed, mm. Used only for the check (bedroom.walkway_short_mm); the wall position comes from wardrobe_walkway (or the arches with no wardrobes).",
+      "source": "Bedroom: target walkway between the wall and the end of the bed, mm. Used only for the check (bedroom.walkway_short_mm); the wall position comes from the arches.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
     "bedroom_wall_x": {
       "value": null,
       "confidence": "derived",
-      "source": "Bedroom: x of the bedroom (rear) face of the dividing wall, mm. null = derived: bed_x0 - wardrobe_walkway - Wardrobe length (hanger depth + door) when the Wardrobes are on, never aft of the forward face of the rear arch housings (rear axle - rear_arch_length/2).",
+      "source": "Bedroom: x of the bedroom (rear) face of the dividing wall, mm. null = forward face of the rear arch housings (rear axle - rear_arch_length/2), 4300.",
       "urls": [],
-      "notes": "Override with a number to move the wall (the Wardrobes follow it)."
+      "notes": "Override with a number to move the wall. The walkway is whatever is left between the wall and the bed (checked against bedroom_walkway)."
     },
     "bedroom_wall_thickness": {
       "value": 50,
@@ -1096,20 +1096,6 @@
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
-    "wardrobe_swing_margin": {
-      "value": 5,
-      "confidence": "nominal",
-      "source": "Bedroom fit-out: minimum gap kept between a swinging Wardrobe door or handle and the side wall, the bed foot and the mirror-image door opposite; sets each door's OpenAngle limit, mm.",
-      "urls": [],
-      "notes": "VERIFY. 0 = allow touching."
-    },
-    "wardrobe_door_floor_gap": {
-      "value": 10,
-      "confidence": "nominal",
-      "source": "Bedroom fit-out: gap between the cabin floor and the bottom of the Wardrobe doors when they can run full height (no arch housing in the swing), mm.",
-      "urls": [],
-      "notes": "VERIFY BY TAPE MEASURE."
-    },
     "wardrobe_rail_diameter": {
       "value": 25,
       "confidence": "nominal",
@@ -1120,58 +1106,23 @@
     "wardrobe_rail_top_gap": {
       "value": 80,
       "confidence": "nominal",
-      "source": "Bedroom fit-out: hanging Rail centre below the underside of the carcass top, mm.",
+      "source": "Bedroom fit-out: cross Rail centre below the underside of the carcass top, mm.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
     "hanger_width": {
       "value": 450,
       "confidence": "nominal",
-      "source": "Bedroom fit-out: coat hanger width used for the hanger-fit check against wardrobe_hanger_depth, mm (adult hanger ~430-450).",
+      "source": "Bedroom fit-out: coat hanger width, mm (adult ~430-450). Each cross Rail needs hanger_width + 50 of wardrobe length; sets the default rail count.",
       "urls": [],
       "notes": "Check only."
     },
     "wardrobe_hanger_depth": {
       "value": 520,
       "confidence": "nominal",
-      "source": "Bedroom fit-out: Wardrobe internal length along the bus (bedroom wall face to the back of the doors), mm. One hanger width plus clearance: clothes hang sideways on a Rail across the bus.",
+      "source": "Bedroom fit-out (Paul's spec): Wardrobe depth inward from the side wall to the back of the doors, mm, sized to hangers on the cross rails. External = this + wardrobe_door_thickness.",
       "urls": [],
-      "notes": "VERIFY. Keep >= hanger_width + 50."
-    },
-    "wardrobe_internal_width": {
-      "value": 425,
-      "confidence": "nominal",
-      "source": "Bedroom fit-out: Wardrobe internal width across the bus, from the side wall to the inner side panel, mm. Equals the Rail length: 425 holds ~17 garments at garment_pitch 25.",
-      "urls": [],
-      "notes": "VERIFY. Passage between the wardrobes = interior_width - 2 x (this + wardrobe_panel_thickness) = 914 at 425."
-    },
-    "wardrobe_wall_filler": {
-      "value": 50,
-      "confidence": "nominal",
-      "source": "Bedroom fit-out: fixed filler strip between the side wall and the outer door hinge, mm. Lets the outer door and its handle pass 90 degrees without hitting the side wall.",
-      "urls": [],
-      "notes": "VERIFY BY TAPE MEASURE."
-    },
-    "wardrobe_arch_clearance": {
-      "value": 20,
-      "confidence": "nominal",
-      "source": "Bedroom fit-out: clearance from the rear arch housing top to the door bottom edge where the door swing passes over a housing, mm.",
-      "urls": [],
-      "notes": "VERIFY BY TAPE MEASURE."
-    },
-    "wardrobe_walkway": {
-      "value": null,
-      "confidence": "derived",
-      "source": "Bedroom fit-out: clear walkway from the Wardrobe door fronts to the foot of the bed, mm. Sets the bedroom wall: wall_x = bed_x0 - this - (wardrobe_hanger_depth + wardrobe_door_thickness). null = door fronts flush with the forward face of the rear arch housings (432.5).",
-      "urls": [],
-      "notes": "600 moves the wall a further 167.5 forward (-0.30 m2 living floor). Doors run full height only if the fronts sit at least the door swing (~197) forward of the housings, i.e. walkway >= ~640."
-    },
-    "wardrobe_rail_x": {
-      "value": null,
-      "confidence": "derived",
-      "source": "Bedroom fit-out: x of the hanging Rail (across the bus), mm. null = middle of the hanger depth.",
-      "urls": [],
-      "notes": "Set a number to override."
+      "notes": "VERIFY."
     },
     "garment_pitch": {
       "value": 25,
@@ -1179,6 +1130,41 @@
       "source": "Bedroom fit-out: rail space per garment for the capacity check, mm.",
       "urls": [],
       "notes": "Check only."
+    },
+    "wardrobe_length": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out (Paul's spec): Wardrobe length along the bus, mm, starting at the forward face of the rear arch housing. null = rear_arch_length (x 4300-5500).",
+      "urls": [],
+      "notes": "Set a number to override."
+    },
+    "wardrobe_base_z": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out (Paul's spec): top of the Wardrobe Base (its floor) above ground, mm. The Base runs from the cabin floor up to here and encloses the rear arch housing. null = arch housing top + wardrobe_panel_thickness (1118).",
+      "urls": [],
+      "notes": "Set a number to override."
+    },
+    "wardrobe_end_filler": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: fixed filler at each end of the door run (forward and aft), mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_rail_door_gap": {
+      "value": 20,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap from the back of the doors to the inner end of each cross Rail, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bed_wardrobe_gap": {
+      "value": 10,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap between the notched Bed Platform / Mattress and the Wardrobe fronts, mm (bed_narrow_beside_wardrobes).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
     }
   },
   "au_market_notes": {
@@ -1419,7 +1405,7 @@
       "value": 100,
       "unit": "deg",
       "confidence": "nominal",
-      "source": "Upper limit for Wardrobe door OpenAngle. The build lowers each door's limit further if the door or handle would hit the side wall, the bed foot or the opposite wardrobe's door (see usable_floor.json wardrobes.swing)."
+      "source": "Upper limit for Wardrobe door OpenAngle (Paul: at least 90). Not reduced for clashes; first-contact angles are reported in usable_floor.json wardrobes.leaves."
     }
   },
   "layout_options": {
@@ -1454,11 +1440,23 @@
     },
     "wardrobes_enabled": {
       "value": true,
-      "source": "Build the two Wardrobes against the aft face of the bedroom wall at the side walls (clothes sideways, doors on the aft face)."
+      "source": "Build Paul's Wardrobes over the rear arch housings, doors facing the centreline."
     },
     "pillow_count": {
       "value": 2,
       "source": "Number of pillows across the head of the bed (head at the rear)."
+    },
+    "wardrobe_door_leaves": {
+      "value": 2,
+      "source": "Door leaves per Wardrobe along its length (pairs: odd-numbered leaves hinge forward, even-numbered aft). 2 = one double pair."
+    },
+    "wardrobe_rail_count": {
+      "value": null,
+      "source": "Cross Rails (along Y) per Wardrobe. null = as many as fit at hanger_width + 50 each along the internal length (2 at 1164)."
+    },
+    "bed_narrow_beside_wardrobes": {
+      "value": true,
+      "source": "Notch the Bed Platform and Mattress beside the Wardrobes (to the wardrobe fronts - bed_wardrobe_gap) so nothing overlaps. false = leave the overlap (reported)."
     }
   },
   "windows": {

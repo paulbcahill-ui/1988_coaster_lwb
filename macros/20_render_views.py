@@ -225,23 +225,28 @@ def draw_plan(params, V, computed, path):
                 f"\nplatform z{bd['platform_top_z']:.0f}{' over boot' if bd['over_boot'] else ''}",
                 ha="center", va="center", fontsize=6.5, color="#3a2a4a", zorder=8)
         dim_line(ax, (bd["wall_x"], W / 2), (L - wall, W / 2), f"bedroom {bd['bedroom_length']:.0f}", (0, 140), fontsize=7)
-        # Wardrobes at the side walls against the wall's aft face: carcass + closed doors, rail across
-        # the bus, doors drawn open at 90 degrees (dashed).
+        # Wardrobes over the rear arch housings (Paul's spec): carcass + closed doors, cross rails, doors
+        # drawn open at 90 degrees (dashed), bed notch outline.
         wd = computed.get("wardrobes")
         if wd:
             for sg in (-1, 1):
-                y0 = min(sg * wd["y_inner"], sg * wd["y_wall"])
-                ax.add_patch(Rectangle((wd["x0"], y0), wd["front_x"] - wd["x0"], wd["y_wall"] - wd["y_inner"],
-                                       fc="#c8b28f", ec="#5a4a30", lw=0.6, zorder=6))
-                ax.plot([wd["rail_x"]] * 2, [sg * wd["rail_y_abs"][0], sg * wd["rail_y_abs"][1]], color="#777", lw=0.8,
-                        zorder=7)
-                for hinge in (wd["y_inner"], wd["y_outer_hinge"]):
-                    ax.plot([wd["front_x"], wd["front_x"] + wd["leaf_w"]], [sg * hinge] * 2, color="#5a4a30",
-                            lw=0.8, ls="--", zorder=7)
-            ax.text(wd["front_x"] + 20, 0, f"WARDROBES {wd['x_internal']:.0f} x {wd['y_internal']:.0f} int\n"
-                    f"rail {wd['rail_length']:.0f} (~{wd['garments_per_side']} garments)\npassage {wd['passage_closed']:.0f}"
-                    f" / {wd['passage_doors_open_90']:.0f} open vs {wd['doorway_width']:.0f}", ha="left", va="center",
-                    fontsize=5.5, color="#5a4a30", zorder=8)
+                y0 = min(sg * wd["y_front"], sg * wd["y_wall"])
+                ax.add_patch(Rectangle((wd["x0"], y0), wd["x_external"], wd["y_wall"] - wd["y_front"],
+                                       fc="#c8b28f", ec="#5a4a30", lw=0.6, alpha=0.9, zorder=6))
+                for rx in wd["rail_xs"]:
+                    ax.plot([rx, rx], [sg * wd["rail_y_abs"][0], sg * wd["rail_y_abs"][1]], color="#777", lw=0.8,
+                            zorder=7)
+                for lf in wd["leaves"]:
+                    ax.plot([lf["hinge_x"]] * 2, [sg * wd["y_front"], sg * (wd["y_front"] - wd["leaf_w"])],
+                            color="#a03030", lw=0.8, ls="--", zorder=7)
+            nb = wd.get("bed_notch")
+            if nb and nb.get("enabled"):
+                ax.add_patch(Rectangle((nb["x0"], -nb["width_beside"] / 2), nb["x1"] - nb["x0"], nb["width_beside"],
+                                       fill=False, ec="#4a3a5a", lw=0.8, ls="-.", zorder=7))
+            ax.text(wd["x0"] + 20, 0, f"WARDROBES over arches {wd['x_external']:.0f} x {wd['y_external']:.0f}\n"
+                    f"{wd['rails']} cross rails ~{wd['garments_per_side']} garments\npassage {wd['passage_closed']:.0f} "
+                    f"closed vs {wd['doorway_width']:.0f}; {len(wd['clashes'])} clashes (see json)", ha="left",
+                    va="center", fontsize=5.5, color="#5a4a30", zorder=8)
 
     # Wheels
     def tyre(x, y, width=tw):
@@ -292,7 +297,7 @@ def draw_plan(params, V, computed, path):
     if bdf:
         short = (f" (SHORT of {bdf['walkway_target']:.0f} target)" if bdf.get("walkway_short_mm", 0) > 0 else "")
         mv = bdf.get("wall_moved_forward_mm", 0) or 0
-        where = f"{mv:.0f} forward of the rear arch housings, wardrobe_walkway" if mv > 0.5 else "flush with rear arch housings"
+        where = f"{mv:.0f} forward of the rear arch housings (bedroom_wall_x)" if mv > 0.5 else "flush with rear arch housings"
         bed_line = (f"Bedroom: wall rear face at x {bdf['wall_x']:.0f} ({where}), "
                     f"{bdf['bedroom_length']:.0f} long; walkway {bdf.get('walkway', 0):.0f}{short}; clear walkway floor "
                     f"{computed.get('bedroom_floor_area_m2', 0):.2f} m².  Dashed purple = underfloor storage bins.\n")
