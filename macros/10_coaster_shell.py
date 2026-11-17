@@ -22,8 +22,9 @@ Body (rebuilt 2026-11-17):
   * Openings: two-piece windscreen in the flat front, driver door (right),
     folding entry door (left), side window band, full-width rear window, and
     the boot opening in the lower rear panel. There is NO rear emergency door.
-  * Boot is INTERNAL: opening in the lower boot_height_fraction of the rear
-    panel (floor line to rear window sill), top-hinged Boot Lid, and a Boot
+  * Boot is INTERNAL: top-hinged Boot Lid recessed in the rear panel from the
+    bumper top to just under the rear window (boot line), a through opening
+    from the floor to the boot top (boot_internal_height), and a Boot
     enclosure (front face + top) reaching boot_depth_into_cabin into the cabin
     from the inner rear wall.
   * Entry Step (2026-11-17, Cabin group): tread in the kerb-side step well at
@@ -34,7 +35,8 @@ Body (rebuilt 2026-11-17):
     top-hinged by default) and Lock Markers that follow their flaps.
   * Bedroom group: dividing wall whose rear face (bedroom_wall_x) is flush
     with the rear arch housings' forward face, centred bi-parting doors
-    Bedroom Door Left/Right (OpenFraction and SlideTravel on the left leaf),
+    Bedroom Door Left/Right in a 'Bedroom Doors' sub-group (OpenFraction and
+    SlideTravel on the group; leaves read it through href() hidden refs),
     Bed Platform (over the boot by default) and the Bedroom Floor. The Living
     Floor (FLR_EMPTY_USABLE, still reported as usable_floor_*) runs from the
     cab zone to the wall.
@@ -217,22 +219,32 @@ def make_rim(cx, cy, cz, rim_d, width):
     return try_fuse(try_fuse(barrel, hub), dish)
 
 
+def side_window_pitch(V):
+    """Evenly pitched bays from the entry door's rear edge to side_window_rear_margin ahead of
+    the rear face: (start, end, pitch, pillar, bays). Same bays on both sides."""
+    start = Vv(V, "entry_door_x") + Vv(V, "entry_door_width")
+    end = Vv(V, "overall_length") - Vv(V, "rear_face_setback") - Vv(V, "side_window_rear_margin")
+    n = max(1, int(round(Vv(V, "side_window_bays"))))
+    return start, end, (end - start) / n, Vv(V, "window_pillar_width"), n
+
+
 def side_window_ranges(P, V):
-    """Return list of (x0, x1) for the main passenger window band."""
-    L = Vv(V, "overall_length")
-    entry_end = Vv(V, "entry_door_x") + Vv(V, "entry_door_width")
-    start = entry_end + 80.0
-    end = L - 520.0
-    n = 5
-    pillar = 80.0
-    available = end - start
-    win = (available - (n - 1) * pillar) / n
-    ranges = []
-    x = start
-    for _ in range(n):
-        ranges.append((x, x + win))
-        x += win + pillar
-    return ranges
+    """(x0, x1) of each side window bay, front to rear; a pillar ahead of each window."""
+    start, _end, pitch, pillar, n = side_window_pitch(V)
+    return [(round(start + k * pitch + pillar, 2), round(start + (k + 1) * pitch, 2)) for k in range(n)]
+
+
+def offside_front_window(V):
+    """Right Side Window Front: offside, opposite the entry door, between the Driver Door
+    (plus a pillar) and the first bay (which starts one pillar after the entry door's rear edge)."""
+    start, _end, _pitch, pillar, _n = side_window_pitch(V)
+    x0 = Vv(V, "driver_door_x") + Vv(V, "driver_door_width") + pillar
+    return (x0, start) if start - x0 > 100.0 else None
+
+
+def skirt_crease_z(V):
+    """Horizontal crease of the lower skirt panel: skirt_height above the bottom of the skin."""
+    return Vv(V, "body_skirt_z") + Vv(V, "skirt_height")
 
 
 def sides(V):
@@ -247,14 +259,25 @@ def span(s, a, b):
 
 
 def boot_layout(V):
-    """Internal boot: opening in the lower part of the rear panel and the enclosure behind it."""
+    """Internal boot. The Boot Lid fills the rear panel from just above the bumper to just below
+    the rear window sill (the boot line), recessed into the skin. Behind it the through opening
+    into the boot runs from the cabin floor up to the boot's internal top: floor +
+    boot_internal_height, or the whole lid height if that param is null."""
     floor = Vv(V, "floor_height")
     sill = Vv(V, "window_sill_z")
-    z1 = floor + Vv(V, "boot_height_fraction") * (sill - floor)
+    lid_z0 = opt(V, "boot_lid_bottom_z", Vv(V, "bumper_z") + Vv(V, "bumper_height") + 10.0)
+    lid_z1 = sill - Vv(V, "boot_lid_top_gap")
+    full = lid_z1 - 4.0
+    ih = V.get("boot_internal_height")
+    z1 = full if ih is None else min(full, floor + float(ih))
     x_inner = Vv(V, "overall_length") - Vv(V, "wall_thickness")
     return {
         "z0": floor,
         "z1": z1,
+        "z1_full": full,
+        "lid_z0": lid_z0,
+        "lid_z1": lid_z1,
+        "recess": Vv(V, "boot_lid_recess"),
         "half_w": Vv(V, "boot_opening_width") / 2.0,
         "x_inner": x_inner,
         "x_front": x_inner - Vv(V, "boot_depth_into_cabin"),
@@ -432,6 +455,7 @@ def storage_layout(V):
     return {
         "z0": Vv(V, "body_skirt_z"),
         "z1": Vv(V, "floor_height") - Vv(V, "floor_thickness"),
+        "flap_z1": skirt_crease_z(V),
         "depth": Vv(V, "storage_bin_depth_inboard"),
         "t": Vv(V, "storage_panel_thickness"),
         "flap_t": Vv(V, "storage_flap_thickness"),
@@ -904,8 +928,27 @@ def passenger_window_layout(V):
     return out
 
 
-def rear_window_half_width(D):
-    return D["hw"] - D["r"] - 60.0
+def rear_window_half_width(D, V=None):
+    margin = 60.0 if V is None else Vv(V, "rear_window_side_margin")
+    return D["hw"] - D["r"] - margin
+
+
+def rounded_box_x(x0, dx, y0, y1, z0, z1, r):
+    """Box along X whose four X-parallel edges are rounded (rear window corners)."""
+    b = box(dx, y1 - y0, z1 - z0, x0, y0, z0)
+    r = min(r, (y1 - y0) / 2.0 - 1.0, (z1 - z0) / 2.0 - 1.0)
+    if r <= 0.5:
+        return b
+    try:
+        edges = [e for e in b.Edges
+                 if abs(e.Vertexes[0].Point.x - e.Vertexes[1].Point.x) > 1e-6]
+        out = b.makeFillet(r, edges)
+        if out.isValid():
+            return out
+    except Exception as exc:
+        print(f"  rounded box failed ({exc}); square corners")
+    FAILED_OPS.append("rounded_box_x")
+    return b
 
 
 def punch_openings(shell, V):
@@ -965,17 +1008,31 @@ def punch_openings(shell, V):
     for x0, x1 in side_window_ranges(None, V):
         for tag, s in (("L", s_left), ("R", s_right)):
             shell = try_cut(shell, side_cutter(D, s, x0, x1, sill, head), f"win_{tag}_{int(x0)}")
+    fw = offside_front_window(V)
+    if fw:
+        shell = try_cut(shell, side_cutter(D, s_right, fw[0], fw[1], sill, head), "win_R_front")
 
-    # Full-width rear window (no rear door on the 1988 LWB).
-    rw = rear_window_half_width(D)
-    shell = try_cut(shell, box(wall + 100.0, 2.0 * rw, head - sill, D["L"] - wall - 40.0, -rw, sill),
-                    "rear_window")
+    # Large, nearly full-width rear window with radiused corners (no rear door on the 1988 LWB).
+    rw = rear_window_half_width(D, V)
+    shell = try_cut(shell, rounded_box_x(D["L"] - wall - 40.0, wall + 100.0, -rw, rw, sill, head,
+                                         Vv(V, "rear_window_corner_radius")), "rear_window")
 
-    # Boot opening through the lower rear panel (floor line up to boot_height_fraction of the
-    # floor-to-sill height); the fixed rear panel above it runs up to the rear window.
+    # Boot: the lid sits in a shallow recess from above the bumper to the boot line under the
+    # rear window; behind it a through opening from the floor to the boot's internal top.
     B = boot_layout(V)
+    shell = try_cut(shell, box(B["recess"] + 60.0, 2.0 * B["half_w"], B["lid_z1"] - B["lid_z0"],
+                               D["x_rear"] - B["recess"], -B["half_w"], B["lid_z0"]), "boot_lid_recess")
     shell = try_cut(shell, box(wall + 100.0, 2.0 * B["half_w"], B["z1"] - B["z0"],
                                D["L"] - wall - 40.0, -B["half_w"], B["z0"]), "boot_opening")
+
+    # Storage flaps reach up to the skirt crease: a shallow skin recess above each bin void.
+    crease = skirt_crease_z(V)
+    if crease > S["z1"] + 1.0:
+        for g in S["segments"]:
+            for tag in g["sides"]:
+                ry0, ry1 = span(S["sides"][tag], D["hw"] - 25.0, D["hw"] + 60.0)
+                shell = try_cut(shell, box(g["x1"] - g["x0"], ry1 - ry0, crease - S["z1"] + 1.0,
+                                           g["x0"], ry0, S["z1"] - 1.0), f"flap_recess_{tag}_{int(g['x0'])}")
     return shell
 
 
@@ -1020,6 +1077,13 @@ def add_glass_and_doors(doc, V, colors, groups):
                   box(x1 - x0 - 2 * clr, glass_t, head - sill - 2 * clr,
                       x0 + clr, side_slab_y(D, s, recess, glass_t), sill + clr),
                   box(x1 - x0, wall, head - sill, x0, side_slab_y(D, s, 0.0, wall), sill))
+    fw = offside_front_window(V)
+    if fw:
+        x0, x1 = fw
+        glass("GLZ_SIDE_R_F",
+              box(x1 - x0 - 2 * clr, glass_t, head - sill - 2 * clr,
+                  x0 + clr, side_slab_y(D, s_right, recess, glass_t), sill + clr),
+              box(x1 - x0, wall, head - sill, x0, side_slab_y(D, s_right, 0.0, wall), sill))
 
     # Passenger Side Window: fixed glass, recessed like the side windows.
     pw = passenger_window_layout(V)
@@ -1030,11 +1094,12 @@ def add_glass_and_doors(doc, V, colors, groups):
                   side_slab_y(D, s_left, 0.0, wall), pw["z0"]))
 
     # Full-width rear window (filler spans the rear wall, inner face to the rear skin).
-    rw0 = rear_window_half_width(D)
+    rw0 = rear_window_half_width(D, V)
     rw = rw0 - clr
-    glass("GLZ_REAR", box(glass_t, 2.0 * rw, head - sill - 2 * clr,
-                          D["x_rear"] - recess - glass_t, -rw, sill + clr),
-          box(D["x_rear"] - (D["L"] - wall), 2.0 * rw0, head - sill, D["L"] - wall, -rw0, sill))
+    rr = Vv(V, "rear_window_corner_radius")
+    glass("GLZ_REAR", rounded_box_x(D["x_rear"] - recess - glass_t, glass_t, -rw, rw, sill + clr, head - clr,
+                                    rr - clr),
+          rounded_box_x(D["L"] - wall, D["x_rear"] - (D["L"] - wall), -rw0, rw0, sill, head, rr))
 
     def door_panel(name, s, x, width, z0, z1, win_frac):
         y = side_slab_y(D, s, 4.0, door_t)
@@ -1068,14 +1133,14 @@ def add_glass_and_doors(doc, V, colors, groups):
     # Boot lid: flush in the lower rear-panel opening, top-hinged. Not a cabin door.
     B = boot_layout(V)
     lid_w = 2.0 * B["half_w"] - 8.0
-    lid_h = B["z1"] - B["z0"] - 8.0
+    lid_h = B["lid_z1"] - B["lid_z0"] - 8.0
     if lid_h > 50.0 and lid_w > 50.0:
-        lid = box(28.0, lid_w, lid_h, D["x_rear"] - 30.0, -lid_w / 2.0, B["z0"] + 4.0)
+        lid = box(28.0, lid_w, lid_h, D["x_rear"] - 30.0, -lid_w / 2.0, B["lid_z0"] + 4.0)
         obj = add_shape("DR_BOOT_LID", lid, groups["GRP_DOORS"], dcol)
         add_prop(obj, "App::PropertyString", "Hinge", "Door", "top edge, opens upward and outward",
                  "Boot lid hinge line (internal boot behind the lower rear panel; not a cabin door)")
         # Hinge: top outer edge of the lid.
-        make_boot_lid_operable(V, obj, D["x_rear"] - 2.0, B["z1"] - 4.0)
+        make_boot_lid_operable(V, obj, D["x_rear"] - 2.0, B["lid_z1"] - 4.0)
 
 
 def add_boot_enclosure(V, colors, groups):
@@ -1119,6 +1184,8 @@ def add_storage(V, colors, groups):
     flap_col = colors.get("body_lower_color", colors["body_color"])
     lock_col = colors.get("light_rear_color", (0.8, 0.1, 0.1))
     top = S["hinge"] == "top"
+    fz1 = max(S["flap_z1"], z1)                # flap top on the skirt crease
+    fo = hw + Vv(V, "skirt_offset") - 1.0       # flap outer face, flush with the Skirt band
     for g in S["segments"]:
         x0, x1 = g["x0"], g["x1"]
         if g["kind"] == "through":
@@ -1139,15 +1206,15 @@ def add_storage(V, colors, groups):
                  "modelled - measure before building.", "Layout note")
         for tag, fname in zip(g["sides"], g["flaps"]):
             s = S["sides"][tag]
-            fy0, fy1 = span(s, hw - 5.0 - ft, hw - 5.0)
-            flap = add_shape(fname, box(x1 - x0 - 8.0, fy1 - fy0, z1 - z0 - 8.0, x0 + 4.0, fy0, z0 + 4.0),
+            fy0, fy1 = span(s, fo - ft, fo)
+            flap = add_shape(fname, box(x1 - x0 - 8.0, fy1 - fy0, fz1 - z0 - 4.0, x0 + 4.0, fy0, z0 + 2.0),
                              grp, flap_col)
             # Lock marker on the free edge (bottom if top-hinged), proud of the flap face.
-            ly0, ly1 = span(s, hw - 5.0, hw + 3.0)
-            lz = (z0 + 10.0) if top else (z1 - 35.0)
+            ly0, ly1 = span(s, fo, fo + 8.0)
+            lz = (z0 + 10.0) if top else (fz1 - 35.0)
             lock = add_shape(fname.replace("STO_FLAP_", "STO_LOCK_"),
                              box(50.0, ly1 - ly0, 25.0, (x0 + x1) / 2.0 - 25.0, ly0, lz), grp, lock_col)
-            make_flap_operable(V, flap, lock, s, s * (hw - 5.0), (z1 - 4.0) if top else (z0 + 4.0), top)
+            make_flap_operable(V, flap, lock, s, s * fo, (fz1 - 2.0) if top else (z0 + 2.0), top)
     return S
 
 
@@ -1174,8 +1241,9 @@ def add_bedroom(V, colors, groups, cavity):
         s = Bd["door_sides"][tag]
         y0, y1 = span(s, Bd["door_centre_gap"] / 2.0, Bd["door_centre_gap"] / 2.0 + lw)
         leaf = box(lt, y1 - y0, lh, Bd["wall_x0"] - 5.0 - lt, y0, floor + 5.0)
-        leaves[tag] = add_shape(f"BED_DOOR_{tag}", leaf, grp, colors.get("dash_color", (0.3, 0.3, 0.3)))
-    make_bedroom_doors_operable(V, leaves["L"], leaves["R"], Bd["door_sides"], Bd["door_travel"])
+        leaves[tag] = add_shape(f"BED_DOOR_{tag}", leaf, groups["GRP_BEDROOM_DOORS"],
+                                colors.get("dash_color", (0.3, 0.3, 0.3)))
+    make_bedroom_doors_operable(V, groups["GRP_BEDROOM_DOORS"], leaves, Bd["door_sides"], Bd["door_travel"])
     # Bed platform: solid base forward of the boot; over the boot only a deck up to platform height.
     pw, ptop = Bd["platform_width"], Bd["platform_top_z"]
     bx0, bx1 = Bd["bed_x0"], Bd["bed_x1"]
@@ -1318,19 +1386,23 @@ def make_flap_operable(V, flap, lock, s, hinge_y, hinge_z, top):
     follow_placement(lock, flap)
 
 
-def make_bedroom_doors_operable(V, left, right, signs, travel):
-    """Bi-parting pair. The controls live on the LEFT leaf (Bedroom Door Left); both leaves'
-    Placements read them, mirrored, each sliding toward its own side wall. The right leaf only
-    reads the left leaf, so there is no cycle."""
-    n = left.Name
-    add_control(left, "OpenFraction", dc(V, "bedroom_door_open_fraction", 0.0), 0.0, 1.0, 0.05,
+def make_bedroom_doors_operable(V, grp, leaves, signs, travel):
+    """Bi-parting pair. OpenFraction and SlideTravel live on the 'Bedroom Doors' GROUP.
+    The group's Group property is a PropertyLinkList, so the group depends on (links) its
+    leaves; a normal leaf expression reading the group would close a cycle. The leaves therefore
+    read the group through href() hidden references: FreeCAD 1.x keeps hidden references out
+    of the dependency graph (PropertyXLinkContainer::getLinks skips them) and re-evaluates the
+    binding when the referenced property changes (PropertyExpressionEngine::updateHiddenReference),
+    so there is no cycle and the leaves still follow the group."""
+    g = grp.Name
+    add_control(grp, "OpenFraction", dc(V, "bedroom_door_open_fraction", 0.0), 0.0, 1.0, 0.05,
                 "Bedroom doors (both leaves): 0 = closed, 1 = fully open (each slides to its own side).")
-    add_control(left, "SlideTravel", travel, 0.0, 1000.0, 10.0,
+    add_control(grp, "SlideTravel", travel, 0.0, 1000.0, 10.0,
                 "Slide distance of each leaf when fully open, mm (default half the opening width).")
-    f = f"max(0; min(1; {n}.OpenFraction))"
-    for leaf, tag in ((left, "L"), (right, "R")):
+    f = f"max(0; min(1; href({g}.OpenFraction)))"
+    for tag, leaf in leaves.items():
         set_expr(leaf, "Placement",
-                 f"placement(vector(0; {signs[tag]:.0f} * {f} * {n}.SlideTravel; 0); vector(0; 0; 1); 0)")
+                 f"placement(vector(0; {signs[tag]:.0f} * {f} * href({g}.SlideTravel); 0); vector(0; 0; 1); 0)")
 
 
 # --------------------------------------------------------------------------
@@ -1454,11 +1526,14 @@ def add_bumpers_and_trim(V, colors, groups):
         add_shape(f"LIT_HEAD_{tag}", front_prism(D, y0, y1, hz0, hz1, 14.0, 34.0), grp,
                   colors["light_front_color"])
 
-    # Vertical tail-lamp clusters at the rear corners, proud of the rear face.
+    # Vertical tail-lamp clusters either side of (outboard of) the Boot Lid, proud of the rear face.
+    B = boot_layout(V)
+    tz0 = opt(V, "tail_lamp_z", skirt_crease_z(V))
     for tag, s in (("L", s_left), ("R", s_right)):
-        y0, y1 = span(s, hw - D["r"] - 155.0, hw - D["r"] - 15.0)
-        add_shape(f"LIT_TAIL_{tag}", box(32.0, y1 - y0, 450.0, D["x_rear"] - 20.0, y0, 900.0), grp,
-                  colors["light_rear_color"])
+        y0, y1 = span(s, B["half_w"] + Vv(V, "tail_lamp_gap"), hw - D["r"] - 10.0)
+        if y1 - y0 > 20.0:
+            add_shape(f"LIT_TAIL_{tag}", box(32.0, y1 - y0, Vv(V, "tail_lamp_height"), D["x_rear"] - 20.0, y0, tz0),
+                      grp, colors["light_rear_color"])
 
     # Side rubbing strips, broken at the door openings on each side.
     strip_z, strip_h, strip_t = 1080.0, 50.0, 12.0
@@ -1485,6 +1560,51 @@ def add_bumpers_and_trim(V, colors, groups):
         parts = [box(x1 - x0, strip_t, strip_h, x0, y0, strip_z) for x0, x1 in segs if x1 > x0]
         if parts:
             add_shape(f"TRM_STRIP_{tag}", Part.makeCompound(parts), grp, colors["rub_strip_color"])
+
+
+def add_skirt(V, colors, groups):
+    """Skirt: a thin band (skirt_offset proud) from the bottom of the skin up to the crease,
+    along both sides from the front corner and round the rear corners into the bumper. It is
+    broken at the wheel arches, the entry door/step, the storage flaps and the Boot Lid."""
+    D = body_dims(V)
+    hw, r, xr, off = D["hw"], D["r"], D["x_rear"], Vv(V, "skirt_offset")
+    z0, z1 = D["skirt"], skirt_crease_z(V)
+    if z1 <= z0 + 1.0 or off <= 0.0:
+        return None
+    xs = front_x_at(D, z1) + r
+
+    def rear_round(b, rad):
+        try:
+            xm = b.BoundBox.XMax
+            edges = [e for e in b.Edges if len(e.Vertexes) == 2
+                     and abs(e.Vertexes[0].Point.z - e.Vertexes[1].Point.z) > 1.0
+                     and abs(e.Vertexes[0].Point.x - xm) < 1e-3 and abs(e.Vertexes[1].Point.x - xm) < 1e-3]
+            return b.makeFillet(rad, edges)
+        except Exception as exc:
+            print(f"  skirt corner rounding failed: {exc}")
+            FAILED_OPS.append("skirt_corners")
+            return b
+
+    outer = rear_round(box(xr + off - xs, 2.0 * (hw + off), z1 - z0, xs, -(hw + off), z0), r + off)
+    inner = rear_round(box(xr - xs + 10.0, 2.0 * hw, z1 - z0 + 20.0, xs - 10.0, -hw, z0 - 10.0), r)
+    band = try_cut(outer, inner, "skirt_band")
+    for name, cutter in arch_cutters(V):
+        band = try_cut(band, cutter, f"skirt_arch_{name}")
+    s_left, _ = sides(V)
+    ex, ew = Vv(V, "entry_door_x"), Vv(V, "entry_door_width")
+    y0, y1 = span(s_left, hw - 60.0, hw + 60.0)
+    band = try_cut(band, box(ew, y1 - y0, z1 - z0 + 20.0, ex, y0, z0 - 10.0), "skirt_entry")
+    S = storage_layout(V)
+    for g in S["segments"]:
+        for tag in g["sides"]:
+            y0, y1 = span(S["sides"][tag], hw - 60.0, hw + 60.0)
+            band = try_cut(band, box(g["x1"] - g["x0"], y1 - y0, z1 - z0 + 20.0, g["x0"], y0, z0 - 10.0),
+                           f"skirt_flap_{tag}_{int(g['x0'])}")
+    B = boot_layout(V)
+    band = try_cut(band, box(200.0, 2.0 * (B["half_w"] + 15.0), z1 - z0 + 20.0, xr - 100.0,
+                             -(B["half_w"] + 15.0), z0 - 10.0), "skirt_lid")
+    return add_shape("TRM_SKIRT", band, groups["GRP_EXTERIOR"],
+                     colors.get("body_lower_color", colors["body_color"]))
 
 
 def add_arch_housings(V, colors, groups):
@@ -1644,6 +1764,7 @@ GROUP_LABELS = {
     "GRP_ROOF": "Roof",
     "GRP_STORAGE": "Storage",
     "GRP_BEDROOM": "Bedroom",
+    "GRP_BEDROOM_DOORS": "Bedroom Doors",
 }
 
 FIXED_LABELS = {
@@ -1655,6 +1776,8 @@ FIXED_LABELS = {
     "GLZ_WINDSCREEN_R": "Windscreen Right",
     "GLZ_REAR": "Rear Window",
     "GLZ_PASSENGER": "Passenger Side Window",
+    "GLZ_SIDE_R_F": "Right Side Window Front",
+    "TRM_SKIRT": "Skirt",
     "WIN_COUNT": "Window Count",
     "DR_ENTRY": "Entry Door",
     "GLZ_ENTRY": "Entry Door Glass",
@@ -1907,7 +2030,12 @@ def run():
         "GRP_ROOF": group("GRP_ROOF"),
         "GRP_STORAGE": group("GRP_STORAGE"),
         "GRP_BEDROOM": group("GRP_BEDROOM"),
+        "GRP_BEDROOM_DOORS": group("GRP_BEDROOM_DOORS"),
     }
+    try:
+        groups["GRP_BEDROOM"].addObject(groups["GRP_BEDROOM_DOORS"])
+    except Exception as exc:
+        print(f"  Bedroom Doors not nested in Bedroom: {exc}")
 
     computed = {
         "coordinate_system": P["coordinate_system"],
@@ -1959,6 +2087,7 @@ def run():
     add_glass_and_doors(doc, V, colors, groups)
     add_wheels(V, colors, groups)
     add_bumpers_and_trim(V, colors, groups)
+    add_skirt(V, colors, groups)
     add_arch_housings(V, colors, groups)
     add_boot_enclosure(V, colors, groups)
     add_cab(V, colors, groups)
@@ -1969,11 +2098,30 @@ def run():
     _ = empty
     st = entry_step_layout(V)
     computed["passenger_window"] = passenger_window_layout(V)
+    sw_start, sw_end, sw_pitch, sw_pillar, sw_n = side_window_pitch(V)
+    computed["side_windows"] = {
+        "pitch": sw_pitch, "pillar": sw_pillar, "bays": sw_n, "start": sw_start, "end": sw_end,
+        "sill_z": Vv(V, "window_sill_z"), "head_z": Vv(V, "window_head_z"),
+        "L": side_window_ranges(None, V), "R": side_window_ranges(None, V),
+        "R_front": offside_front_window(V),
+    }
+    Bk = boot_layout(V)
+    computed["rear"] = {
+        "lid_z0": Bk["lid_z0"] + 4.0, "lid_z1": Bk["lid_z1"] - 4.0, "lid_width": 2.0 * Bk["half_w"] - 8.0,
+        "opening_z0": Bk["z0"], "opening_z1": Bk["z1"], "boot_internal_height": Bk["z1"] - Bk["z0"],
+        "boot_internal_height_full": Bk["z1_full"] - Bk["z0"],
+        "rear_window_width": 2.0 * rear_window_half_width(body_dims(V), V),
+        "rear_window_z": [Vv(V, "window_sill_z"), Vv(V, "window_head_z")],
+        "rear_window_corner_radius": Vv(V, "rear_window_corner_radius"),
+    }
+    computed["skirt"] = {"z0": Vv(V, "body_skirt_z"), "crease_z": skirt_crease_z(V),
+                         "offset": Vv(V, "skirt_offset")}
     computed["entry_step"] = {"group": "Cabin", "x0": st["x0"], "x1": st["x1"], "width": st["width"],
                               "tread_depth": st["tread_depth"], "z_top": st["z_top"], "thickness": st["t"],
                               "well_inner_abs_y": st["well_in"], "side": "left/kerb (y_sign_left)"}
     computed["storage"] = {
         "hinge": S["hinge"], "z0": S["z0"], "z1": S["z1"], "bin_height": S["z1"] - S["z0"],
+        "flap_z0": S["z0"] + 2.0, "flap_z1": max(S["flap_z1"], S["z1"]) - 2.0,
         "depth_inboard": S["depth"], "runs": S["runs"], "run_lengths": S["run_lengths"],
         "segments": S["segments"], "limits": S["limits"],
         "not_modelled": "Chassis rails, fuel tank, spare wheel, exhaust, driveshaft and other underfloor "
@@ -2039,6 +2187,7 @@ def run():
         "FLR_EMPTY": colors["usable_floor_color"],
         "REF_CAB_ZONE": (0.75, 0.62, 0.35),
         "STEP_": colors["bumper_color"],
+        "TRM_SKIRT": colors.get("body_lower_color", colors["body_color"]),
         "STO_BIN": colors["arch_color"],
         "STO_FLAP": colors.get("body_lower_color", colors["body_color"]),
         "STO_LOCK": colors["light_rear_color"],
@@ -2059,12 +2208,13 @@ def run():
     door_state = {}
     for nm, props in (("DR_ENTRY", ("OpenFraction", "SwingPhase", "SwingOut", "SlideTravel")),
                       ("DR_DRIVER", ("OpenAngle",)), ("DR_BOOT_LID", ("OpenAngle",)),
-                      ("BED_DOOR_L", ("OpenFraction", "SlideTravel"))) + tuple(
+                      ("GRP_BEDROOM_DOORS", ("OpenFraction", "SlideTravel"))) + tuple(
                           (o.Name, ("OpenAngle",)) for o in doc.Objects if o.Name.startswith("STO_FLAP_")):
         o = doc.getObject(nm)
         if o is not None:
             door_state[nm] = {p: float(getattr(o, p)) for p in props if hasattr(o, p)}
-            door_state[nm]["placement"] = str(o.Placement)
+            if hasattr(o, "Placement"):
+                door_state[nm]["placement"] = str(o.Placement)
     computed["door_state"] = door_state
     print(f"  door state (render/STEP use this): {door_state}")
 

@@ -399,17 +399,24 @@ def draw_elevation(params, V, computed, path):
     ax.add_patch(Rectangle((ex + 50, floor + 750), ew - 100, eh - 900, fc=win_fc("Entry Door Glass"), ec="#222", lw=0.6, zorder=5, alpha=0.8))
     ax.text(ex + ew / 2, -160, "ENTRY DOOR", ha="center", va="top", fontsize=8, color="#1a4a7a")
 
-    # Side windows — same layout as the macro
-    start = ex + ew + 80.0
-    end = L - 520.0
-    n = 5
-    pillar = 80.0
-    win = (end - start - (n - 1) * pillar) / n
-    x = start
-    for i in range(n):
-        ax.add_patch(Rectangle((x, sill), win, whead - sill, fc=win_fc(f"Left Side Window {i + 1}"), ec="#222",
+    # Side windows: evenly pitched bays, as computed by macro 10 (same formula as fallback).
+    sw = computed.get("side_windows")
+    if sw:
+        ranges = sw["L"]
+    else:
+        start = ex + ew
+        end = L - mm(V, "rear_face_setback") - mm(V, "side_window_rear_margin")
+        n = int(round(mm(V, "side_window_bays")))
+        pitch, pillar = (end - start) / n, mm(V, "window_pillar_width")
+        ranges = [(start + k * pitch + pillar, start + (k + 1) * pitch) for k in range(n)]
+    for i, (x0, x1) in enumerate(ranges, start=1):
+        ax.add_patch(Rectangle((x0, sill), x1 - x0, whead - sill, fc=win_fc(f"Left Side Window {i}"), ec="#222",
                                lw=0.6, zorder=4, alpha=0.7))
-        x += win + pillar
+
+    # Lower skirt crease (Skirt band from body_skirt_z up to the crease).
+    crease = computed.get("skirt", {}).get("crease_z", skirt + mm(V, "skirt_height"))
+    ax.plot([0.190 * L, L], [crease, crease], color="#555", lw=0.9, zorder=5)
+    ax.text(L - 60, crease + 15, "SKIRT CREASE", ha="right", va="bottom", fontsize=6, color="#444", zorder=7)
 
     # Passenger Side Window (fixed, kerb side, opposite the driver door)
     pwin = computed.get("passenger_window")
@@ -428,7 +435,8 @@ def draw_elevation(params, V, computed, path):
     # Internal boot enclosure on the rear of the cabin floor (no rear door on the 1988 LWB).
     bx1 = L - wall
     bx0 = bx1 - mm(V, "boot_depth_into_cabin")
-    b_top = floor + mm(V, "boot_height_fraction") * (sill - floor) + mm(V, "boot_panel_thickness")
+    b_top = computed.get("boot_enclosure", {}).get(
+        "z_top", floor + mm(V, "boot_internal_height") + mm(V, "boot_panel_thickness"))
     ax.add_patch(Rectangle((bx0, floor), bx1 - bx0, b_top - floor, fc="#d8c08a", ec="#7a5a20", lw=0.8,
                            alpha=0.8, hatch="\\\\", zorder=4))
     ax.text((bx0 + bx1) / 2, b_top + 40, "INTERNAL BOOT", ha="center", va="bottom", fontsize=7, color="#5a3a10", zorder=7)
@@ -442,9 +450,10 @@ def draw_elevation(params, V, computed, path):
     sto = computed.get("storage", {})
     for g in sto.get("segments", []):
         if "L" in g["sides"]:
-            ax.add_patch(Rectangle((g["x0"], sto["z0"]), g["x1"] - g["x0"], sto["z1"] - sto["z0"], fill=False,
+            fz0, fz1 = sto.get("flap_z0", sto["z0"]), sto.get("flap_z1", sto["z1"])
+            ax.add_patch(Rectangle((g["x0"], fz0), g["x1"] - g["x0"], fz1 - fz0, fill=False,
                                    ec="#8a3a8a", lw=0.9, ls="--", zorder=6))
-            ax.text((g["x0"] + g["x1"]) / 2, (sto["z0"] + sto["z1"]) / 2, f"bin flap ({sto.get('hinge', 'top')}-hinged)",
+            ax.text((g["x0"] + g["x1"]) / 2, (fz0 + fz1) / 2, f"bin flap ({sto.get('hinge', 'top')}-hinged)",
                     ha="center", va="center", fontsize=6, color="#8a3a8a", zorder=7)
     bd = computed.get("bedroom")
     if bd:

@@ -61,7 +61,7 @@ The green floor in the plan and in the cutaway view is the living floor plus the
 
 FreeCAD groups (Labels): **Exterior**, **Floor**, **Glazing**, **Doors**, **Wheels**, **Wheel Arches**, **Cab**, **Cabin**, **Reference**, **Storage**, **Bedroom**. Plus **Roof**, which holds the roof solid (Label **Roof Panel**, qualified because the group is already called Roof). The roof solid is split from Body along one plane, `roof_split_z_mm` = (window head 2360 + fillet start 2400) / 2 = 2380, so the two meet exactly. Body (the walls) stays in Exterior. The internal boot enclosure is **Boot**, in Cabin.
 
-Labels are plain proper nouns, for example Body, Windscreen Left / Right, Left Side Window 1–5, Rear Window, Passenger Side Window, Entry Door, Entry Door Glass, Driver Door, Driver Door Glass, Boot Lid, Front Bumper, Grille, Left Headlamp, Front Left Wheel / Front Left Tyre, Rear Left Outer Tyre, Rear Left Arch Housing, Driver Seat, Steering Wheel, Entry Step, Left Storage Bin 1 / Through Storage Bin 1, Left Storage Flap 1, Left Lock Marker 1, Bedroom Wall, Bedroom Door Left / Right, Bed Platform, Living Floor, Bedroom Floor and Centreline. A qualifier is added only where two labels would clash. Internal **Names** keep their safe prefixes (`GRP_`, `BODY_`, `DR_`, `GLZ_`, `WHL_`, …), and the renderer and expressions key on Names, so relabelling in the GUI breaks nothing.
+Labels are plain proper nouns, for example Body, Windscreen Left / Right, Left / Right Side Window 1–6, Right Side Window Front, Rear Window, Passenger Side Window, Entry Door, Entry Door Glass, Driver Door, Driver Door Glass, Boot Lid, Front Bumper, Grille, Left Headlamp, Front Left Wheel / Front Left Tyre, Rear Left Outer Tyre, Rear Left Arch Housing, Driver Seat, Steering Wheel, Entry Step, Left Storage Bin 1 / Through Storage Bin 1, Left Storage Flap 1, Left Lock Marker 1, Bedroom Wall, Bedroom Doors (group), Bedroom Door Left / Right, Skirt, Bed Platform, Living Floor, Bedroom Floor and Centreline. A qualifier is added only where two labels would clash. Internal **Names** keep their safe prefixes (`GRP_`, `BODY_`, `DR_`, `GLZ_`, `WHL_`, …), and the renderer and expressions key on Names, so relabelling in the GUI breaks nothing.
 
 Coordinate system: origin at the ground plane, vehicle centreline and front bumper face; **+X toward the rear**, **+Y toward the right / offside (driver)**, **−Y toward the left / kerb**, **+Z up**. Units mm.
 
@@ -103,7 +103,7 @@ Left and right are defined in `params/coaster_params.json` under `sides`, from t
 - **−Y = left / kerb**: passenger entry door (just behind the left front wheel) and the entry step well.
 - **+Y = right / offside**: driver seat, steering wheel, instrument cluster, and the driver door.
 - Why: the front is at x = 0 and the bus runs aft along +X, so the driver faces −X; with +Z up the driver's right is (−X) × (+Z) = +Y. Every side-dependent part reads `y_sign_left` / `y_sign_right` (−1 / +1); nothing hard-codes a side.
-- Rear: full-width rear window, a fixed rear panel, and in the lower `boot_height_fraction` (0.40) of the floor-to-sill height a top-hinged Boot Lid opening into an internal Boot enclosure, which protrudes `boot_depth_into_cabin` (1000, verify) into the cabin. It is not a walk-through door.
+- Rear: a large, nearly full-width rear window with radiused corners, and below it a top-hinged Boot Lid from just above the bumper to the boot line under the window, with tail lamps either side, opening into an internal Boot enclosure (see *Photo match, 17 Nov 2026*), which protrudes `boot_depth_into_cabin` (1000, verify) into the cabin. It is not a walk-through door.
 
 The body is a **single continuous** `BODY_SHELL` (walls and roof together). The roof is not split off as a separate cap, so the front header/brow stays part of the same solid.
 
@@ -149,10 +149,10 @@ Select the door in the tree, open its **Door** properties in the property editor
 | Driver Door (right, +Y) | `OpenAngle` | float, degrees | 0–70 | 0; hinged on the front edge, opens outward |
 | Boot Lid | `OpenAngle` | float, degrees | 0–85 | 0; top-hinged, opens up and out |
 | Left/Right Storage Flap n | `OpenAngle` | float, degrees | 0–90 | 0; top-hinged (gas-strut style), opens up and out; its Lock Marker follows |
-| Bedroom Door Left | `OpenFraction` | float | 0–1 | 0; drives **both** bi-parting leaves, each slides toward its own side wall |
-| Bedroom Door Left | `SlideTravel` | float, mm | 0–1000 | half the opening = 425 (each leaf) |
+| Bedroom Doors (group) | `OpenFraction` | float | 0–1 | 0; drives **both** bi-parting leaves, each slides toward its own side wall |
+| Bedroom Doors (group) | `SlideTravel` | float, mm | 0–1000 | half the opening = 425 (each leaf) |
 
-Bedroom Door Right has no controls; its Placement expression reads Bedroom Door Left's, mirrored (no cycle).
+The leaves have no controls; both read the **Bedroom Doors** group's properties, mirrored, through `href()` hidden references (no cycle; see *Photo match, 17 Nov 2026*).
 
 The initial values come from `door_controls` in `params/coaster_params.json`. The PNGs, STEP and STL show the doors in the state they were in at build time. To render an open door, set its value in `door_controls`, then rerun macros 10 and 20.
 
@@ -184,9 +184,23 @@ The initial values come from `door_controls` in `params/coaster_params.json`. Th
 
 ## Glazed or solid windows (17 Nov 2026)
 
-For working out how many windows are needed. Every window pane has a boolean **`Glazed`** (property group *Window*): True = glass, False = solid skin. Covered: Windscreen Left/Right, Left/Right Side Window 1–5, Passenger Side Window, Rear Window, Entry Door Glass and Driver Door Glass (16 in all).
+For working out how many windows are needed. Every window pane has a boolean **`Glazed`** (property group *Window*): True = glass, False = solid skin. Covered: Windscreen Left/Right, Left/Right Side Window 1–6, Right Side Window Front, Passenger Side Window, Rear Window, Entry Door Glass and Driver Door Glass (19 in all since 17 Nov; was 16).
 
 - **Try it in the GUI.** Select a window (e.g. *Left Side Window 3*), set `Glazed` to false in the property editor, then recompute (Ctrl+R). The glass hides and its **Filler** (*Left Side Window 3 Filler*: body colour, skin thickness, flush in the opening) shows. **Window Count** (in Glazing) shows `GlazedCount`, `SolidCount` and `WindowTotal`, and updates on the same recompute. Door glass and door fillers both follow their doors.
 - **Get it into the PNGs, STEP and STL.** Set the states in the `windows` section of `params/coaster_params.json` (keyed by the plain Label, `"value": true/false`; missing = true), then rerun macros 10 and 20. Only the active glass or filler is exported, rendered and used in the dims check, so nothing is counted twice. `usable_floor.json` → `windows` lists each window's state plus `glazed_count`, `solid_count` and `total`; macro 10 also prints the counts.
 - **How it works.** Each pane and filler has its `Visibility` bound to an expression of the pane's `Glazed` (`GLZ_X.Glazed ? 1 : 0` for the glass, `? 0 : 1` for the filler). FreeCAD 1.x evaluates expressions on output properties such as Visibility after each recompute, so this survives reopening and needs no add-on. Shapes and Placements never change. Don't toggle these objects with the Space bar: the next recompute puts Visibility back to match `Glazed`.
-- Defaults: all 16 glazed (16 glazed, 0 solid).
+- Defaults: all 19 glazed (19 glazed, 0 solid).
+
+## Photo match, 17 Nov 2026
+
+Reference: `refs/ref_coaster_rear.png` (offside rear three-quarter, 1920 × 1284). All new sizes are nominal, verify by tape.
+
+- **Side windows.** Re-pitched to even bays with slim pillars (`window_pillar_width` 60). There are `side_window_bays` = 6 per side, from the entry door's rear edge (x 2320) to `side_window_rear_margin` 300 ahead of the rear face (x 6545). Pitch 704.17, glass openings 644.17 wide. The same x list on both sides: 2380–3024, 3084–3728, 3788–4433, 4493–5137, 5197–5841, 5901–6545. The window band is taller: `window_sill_z` 1620 → **1500**, head 2360 (860 tall). The rear window shares the same sill and head.
+- **Right Side Window Front** (`GLZ_SIDE_R_F`, offside +Y, opposite the entry door) runs x 1630–2320, between the Driver Door (+60 pillar) and Right Side Window 1. It has a Filler, a `Glazed` switch and is counted. Offside: 7 windows behind the driver door, as in the photo. **Params `windows` keys changed:** Left/Right Side Window 1–6 and Right Side Window Front (19 windows; was 1–5, 16 windows). Old 1–5 values were reset to true.
+- **Bedroom wall** (x 4250–4300) lands inside window 3 (3788–4433), not on a pillar. A pillar would only fall there with a 641.67 pitch and a 675 rear margin, so it was left.
+- **Rear.** The Boot Lid sits in a 32 mm recess (`boot_lid_recess`) from `boot_lid_bottom_z` (null = bumper top 580 + 10 = 590) to the boot line, `window_sill_z` − `boot_lid_top_gap` 30 = 1470. The lid is 1292 × 872, top-hinged at z 1466, `OpenAngle` unchanged. `boot_opening_width` is 1300 (was 1200). The through opening into the boot runs from the floor (700) to floor + `boot_internal_height` 400 = 1100. Boot top is 1118, so the **bed platform is 1118**: headroom 1362 over the platform and **1112 over the 250 mattress** (was 1100 / 1130). *Trade-off:* `boot_internal_height` null gives a full-height boot (opening 700–1466, top 1484), but that leaves only 996 over the platform and 746 over the mattress, so the default stays 400. `boot_height_fraction` is removed.
+- **Tail lamps** are vertical, outboard of the lid: |y| 690–837.5 (`tail_lamp_gap` 40 from the opening), z 700–1080 (`tail_lamp_z` null = skirt crease, `tail_lamp_height` 380).
+- **Rear window.** 1635 wide (half width = 997.5 − 150 − `rear_window_side_margin` 30) × 860 (z 1500–2360), with 120 corner radii (`rear_window_corner_radius`) on the opening, glass and filler. If the fillet fails it falls back to square corners and logs `rounded_box_x` in the failed ops.
+- **Skirt.** **Skirt** (`TRM_SKIRT`, group Exterior) is a thin band `skirt_offset` 6 proud of the skin, from the skin bottom (450) up to the crease at 450 + `skirt_height` 250 = **700**. It runs along both sides from the front corner, round the rear corners and into the bumper. It is broken at the arches, the entry door, the storage flaps and the Boot Lid. Body stays one solid; the Skirt is excluded from the overall-width check, like the rub strips.
+- **Storage flaps** now run from 452 to 698 (bottom at the skirt bottom, top on the crease), flush with the Skirt face (outer at |y| 1002.5). A 25 mm skin recess between 650 and 700 over each flap makes room above the bin void. The hinge is at the crease. **The bins themselves stay 200 mm tall (450–650).** The floor slab is unchanged.
+- **Bedroom Doors group.** The leaves now sit in **Bedroom Doors** (`GRP_BEDROOM_DOORS`) inside Bedroom. `OpenFraction` and `SlideTravel` live on the group. FreeCAD's `Group` property is a PropertyLinkList (in the OutList), so a plain leaf expression reading its own group would be a cycle. The leaves instead use `href(GRP_BEDROOM_DOORS.OpenFraction)` and `href(GRP_BEDROOM_DOORS.SlideTravel)`. Hidden references are left out of the dependency graph (`PropertyXLinkContainer::getLinks`), and FreeCAD re-evaluates the binding when the group property changes (`PropertyExpressionEngine::updateHiddenReference`). So the leaves follow the group with no cycle. If a leaf ever lags, recompute once (Ctrl+R).

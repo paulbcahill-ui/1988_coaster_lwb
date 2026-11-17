@@ -99,13 +99,14 @@ door's Placement.
 | Driver Door (+Y) | `OpenAngle` (deg) | 0–70 | 0, hinged on its front edge, opens outward |
 | Boot Lid | `OpenAngle` (deg) | 0–85 | 0, top-hinged, opens up and out |
 | Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
-| Bedroom Door Left | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
+| Bedroom Doors (group, in Bedroom) | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
 
 - Windows: each pane (GLZ_*) has a bool `Glazed`; GLZ_* and its FIL_* filler have Visibility expressions
   on it (output-property expressions, evaluated after recompute). Window Count (WIN_COUNT, in Glazing)
   holds `GlazedCount`/`SolidCount`/`WindowTotal`. Build-time states come from params `windows` (by Label);
   exports/renders/dims skip the inactive object (INACTIVE set). Never toggle these with Space.
-- Bedroom Door Right has no controls: its Placement reads Bedroom Door Left's (one-way, no cycle).
+- Bedroom Door Left/Right have no controls: their Placements read the Bedroom Doors group via `href()`
+  hidden references. A plain reference to a containing group IS a cycle (Group is a link list); keep `href`.
 - The controls are on the door objects, not the Doors group. A child's expression that reads its own
   group would be a dependency cycle.
 - Keep `SwingOut` at 45 mm or more, or the sliding door clips the rub strip.
@@ -163,3 +164,16 @@ door's Placement.
   reported in `bedroom.mattress_overrun_mm`; don't hide it.
 - **Usage**: Paul pays per use. Plan carefully, get it right in as few runs as possible, and don't iterate
   renders without need.
+
+## Photo match notes (17 Nov 2026)
+
+- Reference photo: `refs/ref_coaster_rear.png`. Side windows come from `side_window_pitch()` / `side_window_ranges()`:
+  even bays, `window_pillar_width`, `side_window_bays`, `side_window_rear_margin`. The renderer reads
+  `computed.side_windows`. Don't hard-code window x values.
+- The offside has an extra **Right Side Window Front** (`GLZ_SIDE_R_F`, `offside_front_window()`). There are 19 windows;
+  `windows` param keys are Left/Right Side Window 1–6 plus Right Side Window Front.
+- Rear: `boot_layout()` returns the lid zone (`lid_z0`/`lid_z1`, recessed) and the through opening/boot top
+  (`z0`/`z1`, from `boot_internal_height`). The bed platform follows the boot top. Rear window uses
+  `rounded_box_x()` with `rear_window_corner_radius`.
+- Skirt: `skirt_crease_z()` = `body_skirt_z` + `skirt_height`. **Skirt** (`TRM_SKIRT`) is a separate proud band;
+  Body stays one solid. Storage flap tops sit on the crease; the bins stay 200 tall.

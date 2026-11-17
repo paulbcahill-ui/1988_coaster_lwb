@@ -160,6 +160,20 @@
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
+    "skirt_height": {
+      "value": 250,
+      "confidence": "nominal",
+      "source": "Lower skirt panel height: the horizontal crease sits this far above body_skirt_z (photo shows ~250-300). Storage flap tops sit on the crease.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "skirt_offset": {
+      "value": 6,
+      "confidence": "nominal",
+      "source": "How far the Skirt band stands proud of the body skin (crease step depth).",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
     "ground_clearance": {
       "value": 185,
       "confidence": "confirmed_adjacent",
@@ -369,9 +383,9 @@
       "notes": "Override with a number in mm. VERIFY BY TAPE MEASURE."
     },
     "window_sill_z": {
-      "value": 1620,
+      "value": 1500,
       "confidence": "nominal",
-      "source": "Nominal side-window sill height above ground (about 920 mm above the finished floor).",
+      "source": "Nominal side/rear window sill height above ground (about 800 mm above the finished floor). Lowered from 1620 to give the tall window band seen in refs/ref_coaster_rear.png.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
@@ -381,6 +395,62 @@
       "source": "Nominal side-window head height above ground.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "window_pillar_width": {
+      "value": 60,
+      "confidence": "nominal",
+      "source": "Width of the slim pillars between side window bays.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "side_window_bays": {
+      "value": 6,
+      "confidence": "estimated",
+      "source": "Number of evenly pitched side window bays per side behind the entry door (offside adds Right Side Window Front opposite the entry door: 7 windows behind the driver door, as in refs/ref_coaster_rear.png). Integer.",
+      "urls": [],
+      "notes": "Count from the photo."
+    },
+    "side_window_rear_margin": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Rear edge of the last side window ahead of the rear face (overall_length - rear_face_setback).",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "rear_window_side_margin": {
+      "value": 30,
+      "confidence": "nominal",
+      "source": "Rear window edge inboard of the rear corner radius (half width = overall_width/2 - body_edge_radius - this).",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "rear_window_corner_radius": {
+      "value": 120,
+      "confidence": "nominal",
+      "source": "Corner radius of the rear window opening and glass.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "tail_lamp_z": {
+      "value": null,
+      "confidence": "nominal",
+      "source": "Bottom of the vertical tail lamps above ground. null = skirt crease (body_skirt_z + skirt_height).",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "tail_lamp_height": {
+      "value": 380,
+      "confidence": "nominal",
+      "source": "Height of each vertical tail-lamp cluster.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "tail_lamp_gap": {
+      "value": 40,
+      "confidence": "nominal",
+      "source": "Gap between the Boot Lid opening edge and each tail lamp's inboard edge.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
     },
     "windscreen_sill_z": {
       "value": 1120,
@@ -473,17 +543,38 @@
       "urls": [],
       "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
     },
-    "boot_height_fraction": {
-      "value": 0.4,
+    "boot_lid_bottom_z": {
+      "value": null,
       "confidence": "nominal",
-      "source": "Boot opening/lid height as a fraction of the rear panel from the floor line (floor_height) to the rear window sill (window_sill_z). The boot enclosure top's underside sits at the same height. Unitless.",
+      "source": "Bottom of the Boot Lid recess above ground. null = bumper top (bumper_z + bumper_height) + 10.",
       "urls": [],
-      "notes": "NOMINAL - VERIFY ON THE BUS."
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "boot_lid_top_gap": {
+      "value": 30,
+      "confidence": "nominal",
+      "source": "Gap from the Boot Lid recess top (the boot line) down from the rear window sill (window_sill_z).",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "boot_lid_recess": {
+      "value": 32,
+      "confidence": "nominal",
+      "source": "Depth of the recess in the rear skin that the Boot Lid sits in (lid is 28 thick).",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "boot_internal_height": {
+      "value": 400,
+      "confidence": "nominal",
+      "source": "Internal boot height: through-opening and enclosure from the floor line (floor_height) up this far; the enclosure top sits on it. null = full lid height (top about 1484 above ground, leaving only ~750 mm over a 250 mattress on the bed platform). Default 400 keeps the bed platform at ~1118.",
+      "urls": [],
+      "notes": "NOMINAL - TRADE-OFF: taller boot = lower headroom over the bed."
     },
     "boot_opening_width": {
-      "value": 1200,
+      "value": 1300,
       "confidence": "nominal",
-      "source": "Boot opening / lid width in the lower rear panel, centred. Kept inside the tail-lamp clusters.",
+      "source": "Boot Lid / opening width in the rear panel, centred, between the tail lamps (refs/ref_coaster_rear.png).",
       "urls": [],
       "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
     },
@@ -908,6 +999,9 @@
     "Left Side Window 5": {
       "value": true
     },
+    "Left Side Window 6": {
+      "value": true
+    },
     "Right Side Window 1": {
       "value": true
     },
@@ -921,6 +1015,12 @@
       "value": true
     },
     "Right Side Window 5": {
+      "value": true
+    },
+    "Right Side Window 6": {
+      "value": true
+    },
+    "Right Side Window Front": {
       "value": true
     },
     "Passenger Side Window": {
