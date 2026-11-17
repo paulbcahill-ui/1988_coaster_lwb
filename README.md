@@ -2,6 +2,8 @@
 
 FreeCAD design layout of a **1988 Toyota Coaster long-body** (2nd generation, B20/B30 series) with **all passenger seats removed**. The driver seat, dash and steering wheel are retained. Right-hand drive (Australia): driver on the right, passenger entry door on the kerb (left) side. Two side doors only: there is **no rear emergency door**; the rear has a full-width window above a lower-rear luggage boot with its own lid.
 
+**Agents (Grok Bot): read [AGENTS.md](AGENTS.md) first** for how to work with FreeCAD on this project.
+
 Created 16 Nov 2026 (Australia/Brisbane). Folder layout follows `house-whitsundays`: `exports`, `lib`, `macros`, `params`, `scans`, `refs`, `docs`, `pngs`.
 
 The 3D model is a recognisable hollow Coaster body (boxy body, flat slightly raked front, two-piece windscreen, flat grille, low headlamps, full-width bumper, side window band, doors, rear boot, roof, wheels and tyres, interior wall thickness) — not a solid block. The passenger cabin is an empty, labelled volume.
