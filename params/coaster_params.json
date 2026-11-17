@@ -277,17 +277,38 @@
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
-    "entry_step_width": {
+    "entry_step_well_inboard": {
       "value": 350,
       "confidence": "nominal",
-      "source": "Nominal inward depth of the entry step well from the interior side wall.",
+      "source": "Nominal inward depth of the entry step well from the interior side wall (kerb side, -Y). Renamed from entry_step_width.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE. Subtracted from usable floor area."
     },
-    "entry_step_length": {
-      "value": 700,
+    "entry_step_width": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Width of the Entry Step tread and step well along X. null = entry_door_width (step centred on the door).",
+      "urls": [],
+      "notes": "Override with a number in mm if the real step is narrower than the door. Also the X length of the step-well floor keep-out."
+    },
+    "entry_step_tread_depth": {
+      "value": 440,
       "confidence": "nominal",
-      "source": "Nominal length of the entry step well along the vehicle.",
+      "source": "Tread depth from the outer skin inward (Y), mm. Nominal: reaches the inner edge of the step well (hw - (iw/2 - well_inboard) - 5).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "entry_step_z": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Tread top height above ground, mm. null = bottom of the entry door opening (body_skirt_z).",
+      "urls": [],
+      "notes": "VERIFY: a real Coaster has two steps from ground to floor; only the one in the well is modelled."
+    },
+    "entry_step_thickness": {
+      "value": 30,
+      "confidence": "nominal",
+      "source": "Tread plate thickness, mm.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
@@ -437,6 +458,167 @@
       "source": "Modelling value: thickness of the boot enclosure front face and top.",
       "urls": [],
       "notes": "Used by macros/10_coaster_shell.py."
+    },
+    "storage_bin_depth_inboard": {
+      "value": 600,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: bin depth inward from the outer skin for side-only bins, mm.",
+      "urls": [],
+      "notes": "The real underfloor (chassis rails, fuel tank, spare wheel, exhaust, driveshaft) is NOT modelled. Measure before building."
+    },
+    "storage_panel_thickness": {
+      "value": 12,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: bin wall/floor/top panel thickness, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_flap_thickness": {
+      "value": 20,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: flap thickness, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_clear_arch": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: clearance from each end of a bin run to the wheel-arch cut (tyre radius + 90), mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_clear_bumper": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: clearance from a bin run to the bumper, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_clear_step": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: clearance from a kerb-side bin run to the entry step well, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_min_x": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Underfloor side storage: no bins forward of this x. null = cab_zone_length (engine, radiator and doghouse under the cab).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_min_run": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Underfloor side storage: drop derived runs shorter than this, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_left_runs": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Underfloor side storage: kerb-side (-Y) runs as [[x0, x1], ...] mm. null = derived from bumpers, arches and the step well with the clearances above.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "storage_right_runs": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Underfloor side storage: offside (+Y) runs as [[x0, x1], ...] mm. null = derived from bumpers and arches with the clearances above.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bed_mattress_width": {
+      "value": 1830,
+      "confidence": "standard",
+      "source": "Australian king mattress width, mm (AS standard size).",
+      "urls": [],
+      "notes": "Fit check against interior_width is reported in usable_floor.json -> bedroom."
+    },
+    "bed_mattress_length": {
+      "value": 2030,
+      "confidence": "standard",
+      "source": "Australian king mattress length, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bed_mattress_thickness": {
+      "value": 250,
+      "confidence": "nominal",
+      "source": "Bedroom: mattress thickness used for the headroom figure, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bed_platform_width": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom: platform size across the bed, mm. null = min(mattress across, interior_width).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bed_platform_length": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom: platform size along the bed, mm. null = mattress along.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bed_platform_height": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom: platform top above the cabin floor, mm. null = over the boot: max(boot top, rear arch top) - floor; forward of the boot: max(450, rear arch top if overlapped) - floor.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_walkway": {
+      "value": 600,
+      "confidence": "nominal",
+      "source": "Bedroom: clear walkway between the wall and the end of the bed, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_wall_x": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom: x of the bedroom face of the dividing wall, mm. null = bed front x - bedroom_walkway (bed over boot: inner rear wall - (bed length + walkway)).",
+      "urls": [],
+      "notes": "Consider aligning to a window pillar."
+    },
+    "bedroom_wall_thickness": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Bedroom: dividing wall thickness, mm (wall sits forward of bedroom_wall_x).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_door_width": {
+      "value": 700,
+      "confidence": "nominal",
+      "source": "Bedroom: sliding door clear opening width, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_door_height": {
+      "value": 1650,
+      "confidence": "nominal",
+      "source": "Bedroom: door opening height above the floor, mm (capped at interior headroom - 100 to keep a header; headroom is only 1780).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_door_thickness": {
+      "value": 35,
+      "confidence": "nominal",
+      "source": "Bedroom: sliding door leaf thickness, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_door_y_center": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom: door opening centre y, mm. null = against the side wall opposite the slide direction, so the leaf has room to slide.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
     }
   },
   "au_market_notes": {
@@ -603,6 +785,63 @@
       "unit": "deg",
       "confidence": "nominal",
       "source": "Boot lid maximum open angle. VERIFY on the bus."
+    },
+    "storage_flap_open_angle": {
+      "value": 0,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Build-time open angle of every storage flap (0 = closed)."
+    },
+    "storage_flap_max_angle": {
+      "value": 90,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Storage flap maximum open angle. VERIFY gas-strut travel."
+    },
+    "bedroom_door_open_fraction": {
+      "value": 0,
+      "unit": "fraction",
+      "confidence": "nominal",
+      "source": "Build-time bedroom sliding door position, 0 = closed, 1 = open."
+    }
+  },
+  "layout_options": {
+    "_note": "Layout switches (strings / booleans). Read by macros/10_coaster_shell.py.",
+    "storage_flap_hinge": {
+      "value": "top",
+      "options": [
+        "top",
+        "bottom"
+      ],
+      "source": "Top-hinged, gas-strut style as usual on coach bins. VERIFY."
+    },
+    "storage_pass_through": {
+      "value": true,
+      "source": "Where kerb and offside runs overlap in x and nothing modelled is in the way, build one bin right across the width with a flap each side. The driveshaft and chassis rails are NOT modelled; set false if they are in the way."
+    },
+    "bedroom_enabled": {
+      "value": true,
+      "source": "Build the bedroom wall, door and bed platform."
+    },
+    "bed_orientation": {
+      "value": "lengthwise",
+      "options": [
+        "lengthwise",
+        "crosswise"
+      ],
+      "source": "Mattress length along the bus (lengthwise) or across it (crosswise)."
+    },
+    "bed_over_boot": {
+      "value": true,
+      "source": "true = bed platform over the internal boot (boot forms the rear of the base, saves ~1000 mm of cabin). false = bed forward of the boot."
+    },
+    "bedroom_door_slide": {
+      "value": "offside",
+      "options": [
+        "kerb",
+        "offside"
+      ],
+      "source": "Direction the bedroom sliding door opens: toward the kerb (-Y) or offside (+Y)."
     }
   }
 }

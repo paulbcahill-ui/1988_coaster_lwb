@@ -31,15 +31,15 @@ The figures **6990 / 2030 / 2635 / 3935 mm** belong to the **3rd-generation and 
 
 Every value, source URL and confidence tag also lives in `params/coaster_params.json`. **Do not hard-code millimetres in macros** — change the params file and regenerate.
 
-## Usable empty passenger floor
+## Living floor and bedroom
 
-Computed from the params (exact numbers are also stored on `FLR_EMPTY_USABLE` in the FreeCAD document and in `exports/usable_floor.json`):
+Computed from the params (exact numbers are also stored on **Living Floor** (`FLR_EMPTY_USABLE`) and **Bedroom Floor** in the FreeCAD document and in `exports/usable_floor.json`; the `usable_floor_*` keys are the living floor):
 
-- Length: **4262.5 mm** (from cab zone 1500 mm to the front face of the internal boot at 5762.5 mm = inner rear wall 6762.5 − boot 1000)
-- Width: **1800 mm** (estimated interior width)
-- Area: **6.42 m²** = 4262.5 × 1800 = 7.6725 m², minus the rear arches 2 × 1200 × 400 = 0.96, the front-arch overlap 2 × 100 × 220 = 0.044 and the entry step well 700 × 350 = 0.245 (keep-outs 1.249 m²). Before the internal boot it was 5262.5 × 1800 − 1.249 = 8.22 m².
+- Living floor: from the cab zone (1500) to the forward face of the bedroom wall (4082.5) = **2582.5 × 1800 = 4.6485 m²**, minus the front-arch overlap 2 × 100 × 220 = 0.044 and the entry step well 800 × 350 = 0.280 → **4.32 m²**. The rear arches (from 4300) are behind the wall.
+- Bedroom: wall_x 4132.5 (bedroom face) to the inner rear wall 6762.5 = **2630 mm** long (4.73 m² footprint). Bed platform 2030 long over the boot (4732.5–6762.5), walkway 600 (4132.5–4732.5). Clear walkway floor 600 × 1800 = 1.08 m² minus the rear-arch housings 2 × 432.5 × 400 = 0.346 → **0.73 m²** (1000 mm clear between the housings).
+- Before the bedroom and the wider step well (boot only): 4262.5 × 1800 − 1.249 = 6.42 m².
 
-The green floor in the plan and in the cutaway view is this usable area. Hatched boxes are keep-outs. Amber is the retained driver/dash zone. There are **no passenger seats**.
+The green floor in the plan and in the cutaway view is the living floor plus the bedroom walkway. Hatched boxes are keep-outs. Amber is the retained driver/dash zone. There are **no passenger seats**.
 
 ## What’s in the build
 
@@ -59,9 +59,9 @@ The green floor in the plan and in the cutaway view is this usable area. Hatched
 | `pngs/1988_coaster_lwb_iso_rear.png` | Exterior 3/4 rear |
 | `pngs/1988_coaster_lwb_iso_cutaway.png` | Roof hidden, empty interior |
 
-FreeCAD groups (Labels): **Exterior**, **Floor**, **Glazing**, **Doors**, **Wheels**, **Wheel Arches**, **Cab**, **Cabin**, **Reference**. Plus **Roof**, which holds the roof solid (Label **Roof Panel**, qualified because the group is already called Roof). The roof solid is split from Body along one plane, `roof_split_z_mm` = (window head 2360 + fillet start 2400) / 2 = 2380, so the two meet exactly. Body (the walls) stays in Exterior. The internal boot enclosure is **Boot**, in Cabin.
+FreeCAD groups (Labels): **Exterior**, **Floor**, **Glazing**, **Doors**, **Wheels**, **Wheel Arches**, **Cab**, **Cabin**, **Reference**, **Storage**, **Bedroom**. Plus **Roof**, which holds the roof solid (Label **Roof Panel**, qualified because the group is already called Roof). The roof solid is split from Body along one plane, `roof_split_z_mm` = (window head 2360 + fillet start 2400) / 2 = 2380, so the two meet exactly. Body (the walls) stays in Exterior. The internal boot enclosure is **Boot**, in Cabin.
 
-Labels are plain proper nouns, for example Body, Windscreen Left / Right, Left Side Window 1–5, Rear Window, Entry Door, Entry Door Glass, Driver Door, Driver Door Glass, Boot Lid, Front Bumper, Grille, Left Headlamp, Front Left Wheel / Front Left Tyre, Rear Left Outer Tyre, Rear Left Arch Housing, Driver Seat, Steering Wheel, Usable Passenger Floor and Centreline. A qualifier is added only where two labels would clash. Internal **Names** keep their safe prefixes (`GRP_`, `BODY_`, `DR_`, `GLZ_`, `WHL_`, …), and the renderer and expressions key on Names, so relabelling in the GUI breaks nothing.
+Labels are plain proper nouns, for example Body, Windscreen Left / Right, Left Side Window 1–5, Rear Window, Entry Door, Entry Door Glass, Driver Door, Driver Door Glass, Boot Lid, Front Bumper, Grille, Left Headlamp, Front Left Wheel / Front Left Tyre, Rear Left Outer Tyre, Rear Left Arch Housing, Driver Seat, Steering Wheel, Entry Step, Left Storage Bin 1 / Through Storage Bin 1, Left Storage Flap 1, Left Lock Marker 1, Bedroom Wall, Bedroom Door, Bed Platform, Living Floor, Bedroom Floor and Centreline. A qualifier is added only where two labels would clash. Internal **Names** keep their safe prefixes (`GRP_`, `BODY_`, `DR_`, `GLZ_`, `WHL_`, …), and the renderer and expressions key on Names, so relabelling in the GUI breaks nothing.
 
 Coordinate system: origin at the ground plane, vehicle centreline and front bumper face; **+X toward the rear**, **+Y toward the right / offside (driver)**, **−Y toward the left / kerb**, **+Z up**. Units mm.
 
@@ -90,7 +90,9 @@ These are the values that should be taped and then written back into `params/coa
 - Wall, floor and roof thickness
 - Entry and driver door opening sizes and positions; internal boot depth into the cabin, boot lid width and height
 - Interior wheel-arch keep-out length, width and height (left and right)
-- Entry step-well size
+- Entry step-well size, step tread height and depth, and the ground-to-step rise
+- Underfloor: chassis rails, fuel tank, spare wheel, exhaust and driveshaft positions (none are modelled), and the real space for side bins
+- Mattress actually wanted (king 1830 is 30 mm wider than the 1800 interior), and where a window pillar falls near the bedroom wall
 - Window sill and head heights
 - Track widths, tyre size / overall diameter, and whether the rears are duals
 
@@ -146,6 +148,9 @@ Select the door in the tree, open its **Door** properties in the property editor
 | Entry Door | `SlideTravel` | float, mm | 0–2000 | 850 (**verify**) |
 | Driver Door (right, +Y) | `OpenAngle` | float, degrees | 0–70 | 0; hinged on the front edge, opens outward |
 | Boot Lid | `OpenAngle` | float, degrees | 0–85 | 0; top-hinged, opens up and out |
+| Left/Right Storage Flap n | `OpenAngle` | float, degrees | 0–90 | 0; top-hinged (gas-strut style), opens up and out; its Lock Marker follows |
+| Bedroom Door | `OpenFraction` | float | 0–1 | 0; slides along the wall toward `bedroom_door_slide` (offside) |
+| Bedroom Door | `SlideTravel` | float, mm | 0–2000 | door width + 40 = 740 |
 
 The initial values come from `door_controls` in `params/coaster_params.json`. The PNGs, STEP and STL show the doors in the state they were in at build time. To render an open door, set its value in `door_controls`, then rerun macros 10 and 20.
 
@@ -154,5 +159,11 @@ The initial values come from `door_controls` in `params/coaster_params.json`. Th
 - **Boot.** The external boot box and its pocket are gone, and the rear is a plain face again. The rear panel is split: the boot opening and lid take the lower 40 % of the height from the floor line (700) to the rear window sill (1620), so z 700–1068. A fixed panel runs above it up to the window. The opening is `boot_opening_width` = 1200 wide (verify) and sits inside the tail lamps. The **Boot** enclosure (front face plus top, 18 mm panels, across the 1800 inside width) stands on the rear of the cabin floor and reaches 1000 mm in from the inner rear wall, with its top's underside at 1068. **Boot Lid** keeps `OpenAngle` (0–85°, top-hinged). The rear bumper is back on the normal bumper line.
 - **Usable floor.** It now ends at the boot's front face: 4262.5 × 1800, 6.42 m². `usable_floor.json` adds `usable_floor_x0_mm`, `usable_floor_x1_mm` and `boot_enclosure`. The plan and elevation show the boot as a hatched tan keep-out.
 - **Roof.** The **Roof Panel** solid (group **Roof**) is split from **Body** with one half-space box at z 2380 (common gives the roof, cut gives the walls), so there is no gap or overlap. `shell_check` reports Body, Roof, the unsplit shell and the Body+Roof volume error (expect about 0). The dims check uses the combined bounding box, STEP and STL include the roof, and the roof-off cutaway hides it automatically because it lies wholly above the 2110 cut.
-- **Params.** Removed `boot_depth`, `boot_width`, `boot_bottom_z`, `boot_top_z`, `boot_wall` and `rear_bumper_*`. Added `boot_depth_into_cabin` = 1000, `boot_height_fraction` = 0.40, `boot_opening_width` = 1200 (all nominal, verify) and `boot_panel_thickness` = 18.
+- **Params (boot).** Removed `boot_depth`, `boot_width`, `boot_bottom_z`, `boot_top_z`, `boot_wall` and `rear_bumper_*`. Added `boot_depth_into_cabin` = 1000, `boot_height_fraction` = 0.40, `boot_opening_width` = 1200 (all nominal, verify) and `boot_panel_thickness` = 18.
 
+## Entry step, underfloor storage and bedroom (17 Nov 2026)
+
+- **Entry Step** (group **Cabin**, a fixed fitting). Tread top at `entry_step_z` (null = bottom of the entry door opening = skirt 450), 30 thick, 800 wide (`entry_step_width` null = door width, x 1520–2320), 440 deep from the skin (`entry_step_tread_depth`), so it fills the bottom of the step well. The well (skin to |y| 550, x 1520–2320) is cut out of the floor slab and the Cabin Floor plate. The old `entry_step_width` (350, inward depth of the well) is now `entry_step_well_inboard`; `entry_step_length` (700) is gone, so the step-well keep-out is now 800 × 350. Only the step in the well is modelled, not the ground-to-step rise.
+- **Storage** group. Bins run from the bottom of the skin (450) to the underside of the cabin floor (650), so they are only 200 mm tall in this model. Runs are derived between the bumpers, the arch cuts (tyre radius + 90) and, on the kerb side, the step well, with 50 mm clearances, and nothing forward of the cab zone (1500: engine and radiator). Kerb (−Y): 2370–4370 (2000) and 5430–6700 (1270). Offside (+Y): 1630–4370 (2740) and 5430–6700 (1270). Where both sides overlap, one **Through Storage Bin** spans the width with a flap each side (2370–4370 and 5430–6700). **Right Storage Bin 1** (1630–2370, 600 deep) is opposite the step well. Each bin is an open tray (12 mm panels), each flap is top-hinged (`storage_flap_hinge`), and each has a **Lock Marker** at its free edge. Override runs with `storage_left_runs`/`storage_right_runs`, or set `storage_pass_through` false. **The real underfloor (chassis rails, fuel tank, spare wheel, exhaust, driveshaft) is not modelled and must be measured.** The through-bins would cross the chassis rails and the driveshaft on a real Coaster.
+- **Bedroom** group. A king mattress (1830 × 2030) does not fit crosswise (2030 and 1830 both exceed 1800). Lengthwise it is **30 mm wider than the 1800 interior**. The platform is built at 1800 wide (`bed_platform_width` null = min(mattress, interior)) and the overrun is reported, not hidden. Options: a queen (1530 × 2030, 270 spare) or king single (1070 × 2030), a custom 1800 × 2030 mattress, or squeezing a soft king 15 mm per side. The bed sits **over the boot** (`bed_over_boot` true): platform top 1100 (boot top 1086, raised to clear the rear-arch housings at 1100). Headroom is 2480 − 1100 = 1380 over the platform, 1130 over a 250 mattress (sitting, not standing). The boot is then reached only from outside through the Boot Lid (or a hatch in the platform). Bed forward of the boot instead puts the wall 1000 mm further forward (wall_x 3132.5) and cuts the living floor to 1582.5 × 1800 − 0.324 = 2.52 m². Its default 450 platform (z 1150) gives *less* headroom (1330 over the platform, 1080 over the mattress); its only gain is inside access to the boot from the bedroom. `bedroom_wall_x` (null = bed front − walkway) = 6762.5 − (2030 + 600) = 4132.5; the 50 mm wall sits forward of it. The 700 × 1650 door opening is next to the kerb wall and the leaf slides 740 toward the offside on the living side (`bedroom_door_slide`). The wall lands mid-window (window 3 is 4008–4732); a pillar is at 3928–4008.
+- `usable_floor.json` adds `entry_step`, `storage` (runs, segments, hinge), `bedroom` (fit, heights, wall_x, door) and `living_floor_*` / `bedroom_floor_*` / `bedroom_footprint_m2`. Plan: step, dashed bins, wall, door, bed and mattress outline. Elevation: step, kerb-side flaps, wall and platform.

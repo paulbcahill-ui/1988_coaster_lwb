@@ -137,7 +137,7 @@ def draw_plan(params, V, computed, path):
     cutouts = computed.get("usable_floor_cutouts", [])
     ax.add_patch(Rectangle(
         (cab, -use_w / 2), use_len, use_w,
-        fc="#8fbe8f", ec="#2f6b2f", lw=0.8, alpha=0.55, zorder=1, label="Empty usable passenger floor",
+        fc="#8fbe8f", ec="#2f6b2f", lw=0.8, alpha=0.55, zorder=1, label="Living floor (and bedroom walkway)",
     ))
     for c in cutouts:
         ax.add_patch(Rectangle(
@@ -171,6 +171,57 @@ def draw_plan(params, V, computed, path):
     ax.text(L + 80, W / 2 + 280, "BOOT LID (lower rear panel,\ntop-hinged; no rear door)",
             ha="left", va="center", fontsize=7, color="#7a5a20")
 
+    # Entry Step tread in the kerb-side step well (outboard of the floor edge).
+    st = computed.get("entry_step")
+    if st:
+        sy0 = SL * (W / 2 - 5)
+        sy1 = SL * (W / 2 - 5 - st["tread_depth"])
+        ax.add_patch(Rectangle((st["x0"], min(sy0, sy1)), st["x1"] - st["x0"], abs(sy1 - sy0),
+                               fc="#5a5a60", ec="#111", lw=0.6, alpha=0.85, zorder=4, label="Entry Step"))
+        ax.text((st["x0"] + st["x1"]) / 2, SL * (W / 2 - 60), f"STEP z{st['z_top']:.0f}", ha="center",
+                va="center", fontsize=6, color="white", zorder=8)
+
+    # Underfloor storage bins: dashed outlines (they are below the floor).
+    sto = computed.get("storage", {})
+    hw = W / 2
+    for i, g in enumerate(sto.get("segments", [])):
+        if g["kind"] == "through":
+            y0, y1 = -hw + 30, hw - 30
+        else:
+            sg = SL if g["sides"][0] == "L" else SR
+            y0, y1 = sorted((sg * (hw - 30), sg * (hw - sto.get("depth_inboard", 600))))
+        ax.add_patch(Rectangle((g["x0"], y0), g["x1"] - g["x0"], y1 - y0, fill=False, ec="#8a3a8a",
+                               lw=1.0, ls="--", zorder=6, label="Underfloor storage (dashed)" if i == 0 else None))
+        ax.text((g["x0"] + g["x1"]) / 2, (y0 + y1) / 2 + (0 if g["kind"] == "side" else -330),
+                f"{'through ' if g['kind'] == 'through' else ''}bin {g['length']:.0f}", ha="center",
+                va="center", fontsize=6, color="#8a3a8a", zorder=8)
+
+    # Bedroom: wall, sliding door, bed platform (mattress outline dashed, shows any overrun).
+    bd = computed.get("bedroom")
+    if bd:
+        ax.add_patch(Rectangle((bd["wall_x0"], -iw / 2), bd["wall_t"], iw, fc="#8a7f6a", ec="#333",
+                               lw=0.6, zorder=6, label="Bedroom wall"))
+        yc, dw = bd["door_y_center"], bd["door_w"]
+        ax.add_patch(Rectangle((bd["wall_x0"] - 2, yc - dw / 2), bd["wall_t"] + 4, dw, fc="white",
+                               ec="none", zorder=6))
+        lw_ = bd["door_leaf_w"]
+        ax.add_patch(Rectangle((bd["wall_x0"] - 5 - bd["door_t"], yc - lw_ / 2), bd["door_t"], lw_,
+                               fc="#4a4f5a", ec="#111", lw=0.5, zorder=7))
+        ax.annotate("", xy=(bd["wall_x0"] - 60, yc + bd["door_slide_sign"] * (lw_ / 2 + 250)),
+                    xytext=(bd["wall_x0"] - 60, yc + bd["door_slide_sign"] * lw_ / 2),
+                    arrowprops=dict(arrowstyle="->", color="#4a4f5a", lw=0.8), zorder=7)
+        pw = bd["platform_width"]
+        ax.add_patch(Rectangle((bd["bed_x0"], -pw / 2), bd["bed_x1"] - bd["bed_x0"], pw, fc="#b9a6c9",
+                               ec="#4a3a5a", lw=0.8, alpha=0.6, zorder=4, label="Bed platform"))
+        ma, mc = bd["mattress_along_x"], bd["mattress_across_y"]
+        ax.add_patch(Rectangle((bd["bed_x1"] - ma, -mc / 2), ma, mc, fill=False, ec="#4a3a5a", lw=0.8,
+                               ls=":", zorder=6))
+        ax.text((bd["bed_x0"] + bd["bed_x1"]) / 2, -iw / 2 + 230,
+                f"BED {mc:.0f} x {ma:.0f} ({bd['orientation']})\noverrun {bd['mattress_overrun_mm']:+.0f} mm vs {iw:.0f}"
+                f"\nplatform z{bd['platform_top_z']:.0f}{' over boot' if bd['over_boot'] else ''}",
+                ha="center", va="center", fontsize=6.5, color="#3a2a4a", zorder=8)
+        dim_line(ax, (bd["wall_x"], W / 2), (L - wall, W / 2), f"bedroom {bd['bedroom_length']:.0f}", (0, 140), fontsize=7)
+
     # Wheels
     def tyre(x, y, width=tw):
         ax.add_patch(Rectangle((x - od / 2, y - width / 2), od, width, fc="#222", ec="#000", lw=0.4, zorder=5, alpha=0.9))
@@ -203,15 +254,26 @@ def draw_plan(params, V, computed, path):
     dim_line(ax, (0, W / 2), (front_axle, W / 2), f"front OH {front_axle:.0f}  (nominal)", (0, 320), fontsize=7)
     dim_line(ax, (front_axle, W / 2), (rear_axle, W / 2), f"wheelbase {mm(V,'wheelbase'):.0f}  (confirmed)", (0, 320), fontsize=7)
     dim_line(ax, (rear_axle, W / 2), (L, W / 2), f"rear OH {mm(V,'rear_overhang'):.0f}  (derived / nominal)", (0, 320), fontsize=7)
-    dim_line(ax, (cab, -W / 2), (cab + use_len, -W / 2), f"usable floor length {use_len:.0f}", (0, -280), fontsize=8)
+    dim_line(ax, (cab, -W / 2), (cab + use_len, -W / 2), f"living floor length {use_len:.0f}", (0, -280), fontsize=8)
+    bdf = computed.get("bedroom")
+    if bdf and computed.get("bedroom_floor_length_mm", 0) > 1:
+        ax.add_patch(Rectangle((bdf["wall_x"], -iw / 2), bdf["bed_x0"] - bdf["wall_x"], iw, fc="#8fbe8f",
+                               ec="#2f6b2f", lw=0.8, alpha=0.55, zorder=1))
+        for c in computed.get("bedroom_floor_cutouts", []):
+            ax.add_patch(Rectangle((c["x0"], c["y0"]), c["x1"] - c["x0"], c["y1"] - c["y0"],
+                                   fc="#c9c4bb", ec="#5c584f", lw=0.7, alpha=0.95, zorder=2, hatch="///"))
     dim_line(ax, (0, -W / 2), (cab, -W / 2), f"cab zone {cab:.0f}  (nominal)", (0, -280), fontsize=7)
     dim_line(ax, (L, -W / 2), (L, W / 2), f"overall width {W:.0f}", (420, 0), fontsize=8)
     ax.text((cab + cab + use_len) / 2, 0, f"interior width {iw:.0f} mm  (estimated)", ha="center", va="center", fontsize=8, color="#1a4a1a", bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="#8fbe8f", alpha=0.9), zorder=7)
 
     area = computed.get("usable_floor_area_m2", use_len * use_w / 1e6)
+    bed_line = ""
+    if bdf:
+        bed_line = (f"Bedroom: wall at x {bdf['wall_x']:.0f}, {bdf['bedroom_length']:.0f} long; clear walkway floor "
+                    f"{computed.get('bedroom_floor_area_m2', 0):.2f} m².  Dashed purple = underfloor storage bins.\n")
     note = (
-        f"Usable empty cabin floor  {use_len:.0f} x {use_w:.0f} mm   =   {area:.2f} m²\n"
-        "Floor runs from the cab zone to the front face of the internal boot.  Area excludes rear and front wheel-arch keep-outs and the entry step well.\n"
+        f"Living floor  {use_len:.0f} x {use_w:.0f} mm   =   {area:.2f} m²   (cab zone to the bedroom wall)\n"
+        "Area excludes wheel-arch keep-outs and the entry step well.\n" + bed_line +
         "Plan viewed from above, front at left: driver/right side (+Y) is at the top, kerb/entry side (-Y) at the bottom.\n"
         "Green = empty usable floor.  Hatched grey = arch / step keep-outs.  Hatched tan = internal boot.  Amber = retained cab zone.\n"
         "Confirmed overall: 6860 L x 1995 W, wheelbase 3800, high roof 2550.  "
@@ -351,6 +413,30 @@ def draw_elevation(params, V, computed, path):
                            alpha=0.8, hatch="\\\\", zorder=4))
     ax.text((bx0 + bx1) / 2, b_top + 40, "INTERNAL BOOT", ha="center", va="bottom", fontsize=7, color="#5a3a10", zorder=7)
 
+    # Entry Step tread (in the door opening), storage flaps (kerb side), bedroom wall and bed.
+    st = computed.get("entry_step")
+    if st:
+        ax.add_patch(Rectangle((st["x0"], st["z_top"] - st["thickness"]), st["x1"] - st["x0"], st["thickness"],
+                               fc="#5a5a60", ec="#111", lw=0.6, zorder=6))
+        ax.text((st["x0"] + st["x1"]) / 2, st["z_top"] + 30, "STEP", ha="center", va="bottom", fontsize=6, zorder=7)
+    sto = computed.get("storage", {})
+    for g in sto.get("segments", []):
+        if "L" in g["sides"]:
+            ax.add_patch(Rectangle((g["x0"], sto["z0"]), g["x1"] - g["x0"], sto["z1"] - sto["z0"], fill=False,
+                                   ec="#8a3a8a", lw=0.9, ls="--", zorder=6))
+            ax.text((g["x0"] + g["x1"]) / 2, (sto["z0"] + sto["z1"]) / 2, f"bin flap ({sto.get('hinge', 'top')}-hinged)",
+                    ha="center", va="center", fontsize=6, color="#8a3a8a", zorder=7)
+    bd = computed.get("bedroom")
+    if bd:
+        ax.add_patch(Rectangle((bd["wall_x0"], floor), bd["wall_t"], bd["ceiling_z"] - floor, fill=False,
+                               ec="#8a7f6a", lw=1.0, ls="--", zorder=5))
+        ax.text(bd["wall_x"], bd["ceiling_z"] - 60, "BEDROOM WALL", ha="left", va="top", fontsize=6, color="#5a4f3a", zorder=7)
+        ax.add_patch(Rectangle((bd["bed_x0"], floor), bd["bed_x1"] - bd["bed_x0"], bd["platform_top_z"] - floor,
+                               fill=False, ec="#4a3a5a", lw=1.0, ls="--", zorder=5))
+        ax.text(bd["bed_x0"] + 40, bd["platform_top_z"] - 40,
+                f"BED PLATFORM z{bd['platform_top_z']:.0f}\nheadroom over mattress {bd['headroom_over_mattress']:.0f}",
+                ha="left", va="top", fontsize=6, color="#3a2a4a", zorder=7)
+
     # Bumpers
     bz, bh = mm(V, "bumper_z"), mm(V, "bumper_height")
     ax.add_patch(Rectangle((-15, bz), 90, bh, fc="#2e2e32", ec="#111", lw=0.5, zorder=5))
@@ -386,11 +472,11 @@ def draw_elevation(params, V, computed, path):
     dim_line(ax, (0, 0), (0, floor), f"floor {floor:.0f}  (nominal)", (-240, 0), fontsize=7)
     dim_line(ax, (L, floor), (L, floor + head), f"headroom {head:.0f}  (derived / nominal)", (260, 0), fontsize=7)
     dim_line(ax, (mm(V, "cab_zone_length"), 0), (use_x1, 0),
-             f"usable floor length {computed.get('usable_floor_length_mm', 0):.0f}", (0, -320), fontsize=8)
+             f"living floor length {computed.get('usable_floor_length_mm', 0):.0f}", (0, -320), fontsize=8)
 
     area = computed.get("usable_floor_area_m2", 0)
     note = (
-        f"Empty usable cabin floor  {computed.get('usable_floor_length_mm', 0):.0f} x "
+        f"Living floor (cab zone to bedroom wall)  {computed.get('usable_floor_length_mm', 0):.0f} x "
         f"{computed.get('usable_floor_width_mm', 0):.0f} mm  =  {area:.2f} m²\n"
         "Standard-roof official height is 2380 mm; this model uses the high-roof case (2550 mm = 2380 + 170).\n"
         "Floor height, overhangs, window band, door openings and arch sizes are nominal — verify by tape measure."
@@ -599,7 +685,7 @@ def draw_3d_view(cache, V, computed, path, title, eye, target, hide_roof=False, 
     area = computed.get("usable_floor_area_m2")
     footer = "1988 Toyota Coaster LWB  ·  6860 x 1995 x 2550 mm  ·  WB 3800  ·  RHD  ·  seats removed"
     if area:
-        footer += f"  ·  usable floor {computed.get('usable_floor_length_mm', 0):.0f} x {computed.get('usable_floor_width_mm', 0):.0f} mm = {area:.2f} m²"
+        footer += f"  ·  living floor {computed.get('usable_floor_length_mm', 0):.0f} x {computed.get('usable_floor_width_mm', 0):.0f} mm = {area:.2f} m²"
     ax.text(0.5, 0.02, footer, transform=ax.transAxes, ha="center", va="bottom", fontsize=7.5, color="#333")
 
     fig.tight_layout()

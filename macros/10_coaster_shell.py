@@ -1,6 +1,7 @@
 """Build a 1988 Toyota Coaster LWB (2nd gen B20/B30) hollow body and empty-cabin layout.
 
-Owns BODY_*, FLR_*, DR_*, GLZ_*, WHL_*, CAB_*, ARCH_*, REF_*, GRP_*, LIT_*, TRM_*.
+Owns BODY_*, FLR_*, DR_*, GLZ_*, WHL_*, CAB_*, ARCH_*, REF_*, GRP_*, LIT_*, TRM_*,
+STEP_*, STO_*, BED_*.
 Idempotent: opens a fresh document, rebuilds from params/coaster_params.json.
 
 Units are millimetres. Do not hard-code measured vehicle dimensions here;
@@ -24,7 +25,17 @@ Body (rebuilt 2026-11-17):
   * Boot is INTERNAL: opening in the lower boot_height_fraction of the rear
     panel (floor line to rear window sill), top-hinged Boot Lid, and a Boot
     enclosure (front face + top) reaching boot_depth_into_cabin into the cabin
-    from the inner rear wall. The usable floor ends at its front face.
+    from the inner rear wall.
+  * Entry Step (2026-11-17, Cabin group): tread in the kerb-side step well at
+    the bottom of the entry door opening; the well is cut out of the floor slab.
+  * Storage group: underfloor bins between the skirt and the underside of the
+    cabin floor, runs derived from bumpers/arch cuts/step well (overridable),
+    through-bins where the kerb and offside runs overlap; flaps (OpenAngle,
+    top-hinged by default) and Lock Markers that follow their flaps.
+  * Bedroom group: dividing wall at bedroom_wall_x, sliding Bedroom Door
+    (OpenFraction, SlideTravel), Bed Platform (over the boot by default) and
+    the Bedroom Floor. The Living Floor (FLR_EMPTY_USABLE, still reported as
+    usable_floor_*) runs from the cab zone to the wall.
   * Glass panes are separate thin solids recessed inside their openings, so
     nothing pokes through the roof or the cutaway plane.
   * The cutaway view uses true planar booleans at cutaway_z (stored in the
@@ -76,14 +87,29 @@ def load_params():
     values["_y_left"] = float(sides.get("y_sign_left", 1))
     values["_y_right"] = float(sides.get("y_sign_right", -1))
     # Operable-door controls (fractions, degrees, mm). Not dimensions, so kept in their own section.
-    for k, v in data.get("door_controls", {}).items():
-        if isinstance(v, dict) and "value" in v:
-            values[k] = v["value"]
+    # Layout switches (strings / booleans) live in layout_options.
+    for section in ("door_controls", "layout_options"):
+        for k, v in data.get(section, {}).items():
+            if isinstance(v, dict) and "value" in v:
+                values[k] = v["value"]
     return data, values
 
 
 def Vv(values, key):
     return float(values[key])
+
+
+def opt(values, key, default):
+    """Number param that may be null (= use the derived default)."""
+    v = values.get(key)
+    if v is None or v == "":
+        return float(default)
+    return float(v)
+
+
+def flag(values, key, default):
+    v = values.get(key)
+    return default if v is None else v
 
 
 def vec(x, y, z):
@@ -233,14 +259,41 @@ def boot_front_x(V):
     return boot_layout(V)["x_front"]
 
 
-def usable_floor_parts(V):
-    """Return (polygon outline as list of (x,y), area_mm2, length, width, subtracted)."""
+def entry_step_layout(V):
+    """Entry Step tread in the kerb-side step well, as wide as the door (centred on it)."""
+    hw = Vv(V, "overall_width") / 2.0
+    iw = Vv(V, "interior_width")
+    ex = Vv(V, "entry_door_x")
+    ew = Vv(V, "entry_door_width")
+    sw = min(opt(V, "entry_step_width", ew), ew)
+    x0 = ex + (ew - sw) / 2.0
+    return {
+        "x0": x0, "x1": x0 + sw, "width": sw,
+        "well_in": iw / 2.0 - Vv(V, "entry_step_well_inboard"),   # |y| of the well's inner edge
+        "tread_depth": Vv(V, "entry_step_tread_depth"),
+        "z_top": opt(V, "entry_step_z", Vv(V, "body_skirt_z")),
+        "t": Vv(V, "entry_step_thickness"),
+        "hw": hw,
+    }
+
+
+def living_floor_x1(V):
+    """Living floor ends at the bedroom wall (forward face) if there is one, else at the boot."""
+    if flag(V, "bedroom_enabled", True):
+        return bedroom_layout(V)["wall_x0"]
+    return boot_front_x(V)
+
+
+def usable_floor_parts(V, x0=None, x1=None):
+    """Return (polygon outline as list of (x,y), area_mm2, length, width, subtracted)
+    for the floor strip x0..x1 (default: cab zone end to the living-floor end)."""
     iw = Vv(V, "interior_width")
     y0 = -iw / 2.0
     y1 = iw / 2.0
-    x0 = Vv(V, "cab_zone_length")
-    # Inner face of the rear wall minus the internal boot enclosure.
-    x1 = boot_front_x(V)
+    if x0 is None:
+        x0 = Vv(V, "cab_zone_length")
+    if x1 is None:
+        x1 = living_floor_x1(V)
     length = x1 - x0
     width = iw
     s_left, s_right = sides(V)
@@ -272,14 +325,171 @@ def usable_floor_parts(V):
         area -= overlap_area(front_axle - fa_l / 2.0, front_axle + fa_l / 2.0,
                              *band(s, Vv(V, "front_arch_width")), f"ARCH_FRONT_{tag}")
 
-    # Entry step well on the LEFT / kerb side, at the entry door.
-    step_x0 = Vv(V, "entry_door_x")
-    step_x1 = step_x0 + Vv(V, "entry_step_length")
-    area -= overlap_area(step_x0, step_x1, *band(s_left, Vv(V, "entry_step_width")), "ENTRY_STEP")
+    # Entry step well on the LEFT / kerb side, at the entry door (lowered floor, as wide as the step).
+    st = entry_step_layout(V)
+    area -= overlap_area(st["x0"], st["x1"], *band(s_left, Vv(V, "entry_step_well_inboard")), "ENTRY_STEP")
 
     # Outline is the outer rectangle; keep-outs are stored separately for the face boolean.
     outline = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
     return outline, area, length, width, subtracted
+
+
+def arch_cut_radius(V):
+    """Radius of the wheel-arch cut in the body (tyre radius + 90 mm), as in arch_cutters."""
+    return Vv(V, "tyre_od") / 2.0 + 90.0
+
+
+def subtract_intervals(lo, hi, blocks, min_len):
+    """[lo, hi] minus the (a, b) blocks, keeping pieces at least min_len long."""
+    pieces = [(lo, hi)]
+    for a, b in blocks:
+        nxt = []
+        for p0, p1 in pieces:
+            if b <= p0 or a >= p1:
+                nxt.append((p0, p1))
+                continue
+            if a > p0:
+                nxt.append((p0, a))
+            if b < p1:
+                nxt.append((b, p1))
+        pieces = nxt
+    return [(round(a, 1), round(b, 1)) for a, b in pieces if b - a >= min_len]
+
+
+def storage_layout(V):
+    """Underfloor side bins: z from the skirt (bottom of the skin) up to the underside of the
+    cabin floor. Runs per side between the bumpers, the wheel-arch cuts and (kerb) the step well.
+    Where kerb and offside runs overlap and nothing modelled is in the way, one bin passes right
+    across (flap each side). Pure Python so it can be checked without FreeCAD."""
+    L = Vv(V, "overall_length")
+    s_left, s_right = sides(V)
+    front_axle = Vv(V, "front_overhang")
+    rear_axle = front_axle + Vv(V, "wheelbase")
+    R = arch_cut_radius(V)
+    ca, cb, cs = Vv(V, "storage_clear_arch"), Vv(V, "storage_clear_bumper"), Vv(V, "storage_clear_step")
+    # Front bumper ends at body_front_x + 50 (it is sunk 50 into the face); rear bumper starts at L - 110.
+    lo = max(opt(V, "storage_min_x", Vv(V, "cab_zone_length")), Vv(V, "body_front_x") + 50.0 + cb)
+    hi = L - 110.0 - cb
+    arches = [(front_axle - R - ca, front_axle + R + ca), (rear_axle - R - ca, rear_axle + R + ca)]
+    st = entry_step_layout(V)
+    step_block = (st["x0"] - cs, st["x1"] + cs)
+    min_run = Vv(V, "storage_min_run")
+    runs = {}
+    for tag, key, blocks in (("L", "storage_left_runs", arches + [step_block]),
+                             ("R", "storage_right_runs", arches)):
+        override = V.get(key)
+        if override:
+            runs[tag] = [(float(a), float(b)) for a, b in override]
+        else:
+            runs[tag] = subtract_intervals(lo, hi, blocks, min_run)
+
+    # Split into segments: overlaps -> through bins (if allowed), the rest -> side-only bins.
+    through = []
+    if flag(V, "storage_pass_through", True):
+        for a0, a1 in runs["L"]:
+            for b0, b1 in runs["R"]:
+                o0, o1 = max(a0, b0), min(a1, b1)
+                if o1 - o0 >= min_run:
+                    through.append((o0, o1))
+    segments = []
+    for x0, x1 in through:
+        segments.append({"kind": "through", "x0": x0, "x1": x1, "sides": ["L", "R"]})
+    for tag in ("L", "R"):
+        for r0, r1 in runs[tag]:
+            for p0, p1 in subtract_intervals(r0, r1, through, 1.0):
+                segments.append({"kind": "side", "x0": p0, "x1": p1, "sides": [tag]})
+    segments.sort(key=lambda g: (g["x0"], g["kind"]))
+    n_side = {"L": 0, "R": 0}
+    n_flap = {"L": 0, "R": 0}
+    n_thru = 0
+    for g in segments:
+        if g["kind"] == "through":
+            n_thru += 1
+            g["bin"] = f"STO_BIN_T{n_thru}"
+        else:
+            tag = g["sides"][0]
+            n_side[tag] += 1
+            g["bin"] = f"STO_BIN_{tag}{n_side[tag]}"
+        g["flaps"] = []
+        for tag in g["sides"]:
+            n_flap[tag] += 1
+            g["flaps"].append(f"STO_FLAP_{tag}{n_flap[tag]}")
+        g["length"] = round(g["x1"] - g["x0"], 1)
+    hinge = str(flag(V, "storage_flap_hinge", "top")).lower()
+    return {
+        "z0": Vv(V, "body_skirt_z"),
+        "z1": Vv(V, "floor_height") - Vv(V, "floor_thickness"),
+        "depth": Vv(V, "storage_bin_depth_inboard"),
+        "t": Vv(V, "storage_panel_thickness"),
+        "flap_t": Vv(V, "storage_flap_thickness"),
+        "hinge": "bottom" if hinge == "bottom" else "top",
+        "runs": runs,
+        "run_lengths": {k: [round(b - a, 1) for a, b in v] for k, v in runs.items()},
+        "segments": segments,
+        "limits": {"lo": lo, "hi": hi, "arch_blocks": arches, "step_block": step_block},
+        "sides": {"L": s_left, "R": s_right},
+    }
+
+
+def bedroom_layout(V):
+    """Bedroom at the rear: dividing wall, sliding door, bed platform. Pure Python."""
+    iw = Vv(V, "interior_width")
+    floor = Vv(V, "floor_height")
+    ceiling = Vv(V, "overall_height") - Vv(V, "roof_thickness")
+    s_left, s_right = sides(V)
+    B = boot_layout(V)
+    boot_top = B["z1"] + B["t"]
+    mw, ml = Vv(V, "bed_mattress_width"), Vv(V, "bed_mattress_length")
+    orient = str(flag(V, "bed_orientation", "lengthwise")).lower()
+    along, across = (ml, mw) if orient != "crosswise" else (mw, ml)
+    plat_len = opt(V, "bed_platform_length", along)
+    plat_w = opt(V, "bed_platform_width", min(across, iw))
+    over_boot = bool(flag(V, "bed_over_boot", True))
+    bed_x1 = B["x_inner"] if over_boot else B["x_front"]
+    bed_x0 = bed_x1 - plat_len
+    walkway = Vv(V, "bedroom_walkway")
+    wall_x = opt(V, "bedroom_wall_x", bed_x0 - walkway)
+    wall_t = Vv(V, "bedroom_wall_thickness")
+    rear_axle = Vv(V, "front_overhang") + Vv(V, "wheelbase")
+    ra0 = rear_axle - Vv(V, "rear_arch_length") / 2.0
+    ra1 = rear_axle + Vv(V, "rear_arch_length") / 2.0
+    arch_top = floor + Vv(V, "rear_arch_height")
+    arch_under_bed = ra1 > bed_x0 and ra0 < bed_x1
+    if over_boot:
+        default_top = max(boot_top, arch_top if arch_under_bed else 0.0)
+    else:
+        default_top = max(floor + 450.0, arch_top if arch_under_bed else 0.0)
+    p_top = floor + opt(V, "bed_platform_height", default_top - floor)
+    door_w = Vv(V, "bedroom_door_width")
+    door_h = min(Vv(V, "bedroom_door_height"), ceiling - floor - 100.0)
+    slide = str(flag(V, "bedroom_door_slide", "offside")).lower()
+    s_slide = s_left if slide == "kerb" else s_right
+    travel = door_w + 40.0
+    leaf_w = door_w + 60.0
+    y_c = opt(V, "bedroom_door_y_center", -s_slide * (iw / 2.0 - 60.0 - door_w / 2.0))
+    leaf_far = s_slide * y_c + leaf_w / 2.0 + travel      # leaf edge when open, measured toward s_slide
+    return {
+        "orientation": "crosswise" if orient == "crosswise" else "lengthwise",
+        "mattress_along_x": along, "mattress_across_y": across,
+        "mattress_overrun_mm": round(across - iw, 1),
+        "platform_length": plat_len, "platform_width": plat_w,
+        "platform_overrun_mm": round(plat_w - iw, 1),
+        "over_boot": over_boot,
+        "bed_x0": bed_x0, "bed_x1": bed_x1,
+        "platform_top_z": p_top, "platform_height_above_floor": p_top - floor,
+        "boot_top_z": boot_top, "rear_arch_top_z": arch_top, "rear_arch_under_bed": arch_under_bed,
+        "ceiling_z": ceiling,
+        "headroom_over_platform": ceiling - p_top,
+        "headroom_over_mattress": ceiling - p_top - Vv(V, "bed_mattress_thickness"),
+        "walkway": bed_x0 - wall_x,
+        "wall_x": wall_x, "wall_x0": wall_x - wall_t, "wall_t": wall_t,
+        "bedroom_length": B["x_inner"] - wall_x,
+        "door_w": door_w, "door_h": door_h, "door_t": Vv(V, "bedroom_door_thickness"),
+        "door_y_center": y_c, "door_slide": "kerb" if slide == "kerb" else "offside",
+        "door_slide_sign": s_slide, "door_travel": travel, "door_leaf_w": leaf_w,
+        "door_slide_clear": leaf_far <= iw / 2.0 + 1e-6,
+        "x_inner": B["x_inner"], "boot_front": B["x_front"],
+    }
 
 
 def face_with_cutouts(outline, cutouts, z):
@@ -654,8 +864,28 @@ def punch_openings(shell, V):
     # Folding entry door, LEFT / kerb side; opening runs down to the skirt (step well).
     ex = Vv(V, "entry_door_x")
     ew = Vv(V, "entry_door_width")
-    shell = try_cut(shell, side_cutter(D, s_left, ex, ex + ew, D["skirt"] - 10.0,
+    st = entry_step_layout(V)
+    shell = try_cut(shell, side_cutter(D, s_left, ex, ex + ew, min(D["skirt"], st["z_top"]) - 10.0,
                                        door_top(V, "entry_door_height", floor)), "entry_door")
+
+    # Step well: the floor slab inside the entry door, from the skin to the well's inner edge,
+    # removed down to the Entry Step tread (open at the bottom when the tread is at the skirt).
+    wz0 = (D["skirt"] - 10.0) if st["z_top"] <= D["skirt"] + 1.0 else st["z_top"]
+    wy0, wy1 = span(s_left, st["well_in"], D["hw"] + 60.0)
+    shell = try_cut(shell, box(st["x1"] - st["x0"], wy1 - wy0, floor + 10.0 - wz0, st["x0"], wy0, wz0),
+                    "entry_step_well")
+
+    # Underfloor storage: one void per bin through the skin and slab, from below the skirt up to
+    # the underside of the cabin floor (side-only bins storage_bin_depth_inboard deep; through bins
+    # right across). The bin walls and flaps are separate objects in the Storage group.
+    S = storage_layout(V)
+    for g in S["segments"]:
+        if g["kind"] == "through":
+            vy0, vy1 = -(D["hw"] + 60.0), D["hw"] + 60.0
+        else:
+            vy0, vy1 = span(S["sides"][g["sides"][0]], D["hw"] - S["depth"], D["hw"] + 60.0)
+        shell = try_cut(shell, box(g["x1"] - g["x0"], vy1 - vy0, S["z1"] - (S["z0"] - 10.0),
+                                   g["x0"], vy0, S["z0"] - 10.0), "storage_" + g["bin"])
 
     # Driver door, RIGHT / offside.
     dx = Vv(V, "driver_door_x")
@@ -772,6 +1002,117 @@ def add_boot_enclosure(V, colors, groups):
     return obj
 
 
+def add_entry_step(V, colors, groups):
+    """Entry Step: tread in the kerb-side step well, at the bottom of the entry door opening,
+    below cabin floor level and outboard of the floor edge. In the Cabin group (fixed fitting)."""
+    st = entry_step_layout(V)
+    s_left, _ = sides(V)
+    y0, y1 = span(s_left, st["hw"] - 5.0 - st["tread_depth"], st["hw"] - 5.0)
+    shp = box(st["x1"] - st["x0"], y1 - y0, st["t"], st["x0"], y0, st["z_top"] - st["t"])
+    obj = add_shape("STEP_ENTRY", shp, groups["GRP_CABIN"], colors.get("bumper_color", (0.2, 0.2, 0.2)))
+    add_prop(obj, "App::PropertyString", "Note", "Coaster",
+             "Tread top at entry_step_z (default = bottom of the entry door opening). Nominal - VERIFY. "
+             "Only the step in the well is modelled; the ground-to-step rise is not.", "Layout note")
+    return obj
+
+
+def add_storage(V, colors, groups):
+    """Underfloor bins (walls as an open tray), hinged flaps with OpenAngle, and lock markers."""
+    D = body_dims(V)
+    S = storage_layout(V)
+    hw, t, ft = D["hw"], S["t"], S["flap_t"]
+    z0, z1 = S["z0"], S["z1"]
+    grp = groups["GRP_STORAGE"]
+    bin_col = colors.get("arch_color", (0.4, 0.4, 0.4))
+    flap_col = colors.get("body_lower_color", colors["body_color"])
+    lock_col = colors.get("light_rear_color", (0.8, 0.1, 0.1))
+    top = S["hinge"] == "top"
+    for g in S["segments"]:
+        x0, x1 = g["x0"], g["x1"]
+        if g["kind"] == "through":
+            oy0, oy1 = -(hw - 30.0), hw - 30.0
+            iy0, iy1 = -(hw + 10.0), hw + 10.0
+        else:
+            s = S["sides"][g["sides"][0]]
+            oy0, oy1 = span(s, hw - S["depth"], hw - 30.0)
+            iy0, iy1 = span(s, hw - S["depth"] + t, hw + 10.0)
+        outer = box(x1 - x0, oy1 - oy0, z1 - z0, x0, oy0, z0)
+        inner = box(x1 - x0 - 2 * t, iy1 - iy0, z1 - z0 - 2 * t, x0 + t, iy0, z0 + t)
+        tray = as_single_solid(try_cut(outer, inner, g["bin"]), g["bin"])
+        bobj = add_shape(g["bin"], tray, grp, bin_col)
+        add_prop(bobj, "App::PropertyFloat", "RunLength_mm", "Coaster", float(x1 - x0),
+                 "Bin length along X, mm (derived; override with storage_left_runs/storage_right_runs)")
+        add_prop(bobj, "App::PropertyString", "Note", "Coaster",
+                 "Real underfloor (chassis rails, fuel tank, spare wheel, exhaust, driveshaft) is NOT "
+                 "modelled - measure before building.", "Layout note")
+        for tag, fname in zip(g["sides"], g["flaps"]):
+            s = S["sides"][tag]
+            fy0, fy1 = span(s, hw - 5.0 - ft, hw - 5.0)
+            flap = add_shape(fname, box(x1 - x0 - 8.0, fy1 - fy0, z1 - z0 - 8.0, x0 + 4.0, fy0, z0 + 4.0),
+                             grp, flap_col)
+            # Lock marker on the free edge (bottom if top-hinged), proud of the flap face.
+            ly0, ly1 = span(s, hw - 5.0, hw + 3.0)
+            lz = (z0 + 10.0) if top else (z1 - 35.0)
+            lock = add_shape(fname.replace("STO_FLAP_", "STO_LOCK_"),
+                             box(50.0, ly1 - ly0, 25.0, (x0 + x1) / 2.0 - 25.0, ly0, lz), grp, lock_col)
+            make_flap_operable(V, flap, lock, s, s * (hw - 5.0), (z1 - 4.0) if top else (z0 + 4.0), top)
+    return S
+
+
+def add_bedroom(V, colors, groups, cavity):
+    """Dividing wall (fitted to the cabin section), sliding door, bed platform, bedroom floor."""
+    Bd = bedroom_layout(V)
+    iw = Vv(V, "interior_width")
+    floor = Vv(V, "floor_height")
+    grp = groups["GRP_BEDROOM"]
+    ceil_z = Bd["ceiling_z"]
+    # Wall: a slab clipped to the cabin void, so it follows the radiused ceiling corners.
+    slab = box(Bd["wall_t"], iw + 400.0, ceil_z - floor + 200.0, Bd["wall_x0"], -iw / 2.0 - 200.0, floor)
+    wall = try_common(slab, cavity, "bedroom_wall") or box(Bd["wall_t"], iw, ceil_z - floor - 60.0,
+                                                           Bd["wall_x0"], -iw / 2.0, floor)
+    yc, dw, dh = Bd["door_y_center"], Bd["door_w"], Bd["door_h"]
+    wall = try_cut(wall, box(Bd["wall_t"] + 20.0, dw, dh + 10.0, Bd["wall_x0"] - 10.0, yc - dw / 2.0, floor - 10.0),
+                   "bedroom_door_opening")
+    add_shape("BED_WALL", as_single_solid(wall, "bedroom_wall"), grp, (0.86, 0.83, 0.76))
+    # Sliding leaf on the living side of the wall, overlapping the opening 30 mm each side.
+    lw, lt = Bd["door_leaf_w"], Bd["door_t"]
+    lh = min(dh + 25.0, ceil_z - floor - 20.0)
+    leaf = box(lt, lw, lh, Bd["wall_x0"] - 5.0 - lt, yc - lw / 2.0, floor + 5.0)
+    door = add_shape("BED_DOOR", leaf, grp, colors.get("dash_color", (0.3, 0.3, 0.3)))
+    make_bedroom_door_operable(V, door, Bd["door_slide_sign"], Bd["door_travel"])
+    # Bed platform: solid base forward of the boot; over the boot only a deck up to platform height.
+    pw, ptop = Bd["platform_width"], Bd["platform_top_z"]
+    bx0, bx1 = Bd["bed_x0"], Bd["bed_x1"]
+    if Bd["over_boot"]:
+        front_x1 = min(bx1, Bd["boot_front"])
+        base = box(front_x1 - bx0, pw, ptop - floor, bx0, -pw / 2.0, floor) if front_x1 > bx0 + 1.0 else None
+        deck_z0 = Bd["boot_top_z"]
+        if ptop - deck_z0 > 1.0 and bx1 > Bd["boot_front"]:
+            deck = box(bx1 - max(bx0, Bd["boot_front"]), pw, ptop - deck_z0, max(bx0, Bd["boot_front"]),
+                       -pw / 2.0, deck_z0)
+            base = deck if base is None else as_single_solid(try_fuse(base, deck, "bed_platform"), "bed_platform")
+    else:
+        base = box(bx1 - bx0, pw, ptop - floor, bx0, -pw / 2.0, floor)
+    if base is not None:
+        plat = add_shape("BED_PLATFORM", base, grp, colors.get("seat_color", (0.3, 0.3, 0.4)))
+        add_prop(plat, "App::PropertyString", "Mattress", "Coaster",
+                 f"{Bd['mattress_across_y']:.0f} across x {Bd['mattress_along_x']:.0f} along ({Bd['orientation']}); "
+                 f"overrun vs interior width {Bd['mattress_overrun_mm']:+.0f} mm", "Mattress fit")
+        add_prop(plat, "App::PropertyFloat", "PlatformTopZ_mm", "Coaster", float(ptop),
+                 "Platform top above ground, mm (nominal, verify)")
+    # Bedroom floor: the walkway between the wall and the bed, minus arch keep-outs.
+    outline, area, blen, bw, cut = usable_floor_parts(V, Bd["wall_x"], bx0)
+    if blen > 1.0:
+        try:
+            shp = face_with_cutouts(outline, cut, floor + 1.0).extrude(vec(0, 0, 6.0))
+        except Exception:
+            shp = box(blen, bw, 6.0, Bd["wall_x"], -bw / 2.0, floor + 1.0)
+        fobj = add_shape("FLR_BEDROOM", shp, grp, colors["usable_floor_color"])
+        add_prop(fobj, "App::PropertyFloat", "FloorArea_m2", "Coaster", float(area / 1e6),
+                 "Clear bedroom floor (walkway) area, square metres")
+    return Bd, area, blen, cut
+
+
 # --------------------------------------------------------------------------
 # Operable doors
 #
@@ -863,6 +1204,34 @@ def make_boot_lid_operable(V, lid, hinge_x, hinge_z):
     expr = (f"placement(vector(0; 0; 0); rotation(vector(0; -1; 0); {a}); "
             f"vector({hinge_x:.3f}; 0; {hinge_z:.3f}))")
     set_expr(lid, "Placement", expr)
+
+
+def make_flap_operable(V, flap, lock, s, hinge_y, hinge_z, top):
+    """Storage flap on a longitudinal hinge at its outer top (or bottom) edge, opening outward."""
+    n = flap.Name
+    hi = dc(V, "storage_flap_max_angle", 90.0)
+    where = "top-hinged, opens up and out" if top else "bottom-hinged, drops down and out"
+    add_control(flap, "OpenAngle", dc(V, "storage_flap_open_angle", 0.0), 0.0, hi, 5.0,
+                f"Storage flap open angle, degrees (0 = closed, max {hi:.0f}); {where}.")
+    a = f"max(0; min({hi:g}; {n}.OpenAngle))"
+    # About +X by +a a point below the hinge moves toward +Y; above the hinge, toward -Y.
+    ax = s if top else -s
+    expr = (f"placement(vector(0; 0; 0); rotation(vector({ax:.0f}; 0; 0); {a}); "
+            f"vector(0; {hinge_y:.3f}; {hinge_z:.3f}))")
+    set_expr(flap, "Placement", expr)
+    follow_placement(lock, flap)
+
+
+def make_bedroom_door_operable(V, door, s, travel):
+    """Sliding leaf: moves along Y toward sign s by OpenFraction * SlideTravel."""
+    n = door.Name
+    add_control(door, "OpenFraction", dc(V, "bedroom_door_open_fraction", 0.0), 0.0, 1.0, 0.05,
+                "Bedroom door: 0 = closed, 1 = fully open (slides along the wall).")
+    add_control(door, "SlideTravel", travel, 0.0, 2000.0, 10.0,
+                "Slide distance when fully open, mm (default door width + 40).")
+    f = f"max(0; min(1; {n}.OpenFraction))"
+    set_expr(door, "Placement",
+             f"placement(vector(0; {s:.0f} * {f} * {n}.SlideTravel; 0); vector(0; 0; 1); 0)")
 
 
 def add_wheels(V, colors, groups):
@@ -1049,6 +1418,10 @@ def add_floor_and_refs(V, colors, groups, computed):
 
     # Structural floor plate (full cabin, including cab), arches sit on top.
     plate = box(x1 - x0, iw, thick, x0, -iw / 2.0, floor_z - thick)
+    st = entry_step_layout(V)
+    wy0, wy1 = span(Vv(V, "_y_left"), st["well_in"], iw / 2.0 + 10.0)
+    plate = try_cut(plate, box(st["x1"] - st["x0"], wy1 - wy0, thick + 20.0, st["x0"], wy0, floor_z - thick - 10.0),
+                    "floor_step_well")
     flr = add_shape("FLR_CABIN", plate, groups["GRP_FLOOR"], colors["floor_color"])
 
     # Green usable empty passenger floor (thin plate with keep-outs cut).
@@ -1060,16 +1433,16 @@ def add_floor_and_refs(V, colors, groups, computed):
     empty = add_shape("FLR_EMPTY_USABLE", usable, groups["GRP_CABIN"], colors["usable_floor_color"])
 
     add_prop(empty, "App::PropertyFloat", "UsableArea_m2", "Coaster",
-             float(area / 1e6), "Usable empty cabin floor area, square metres")
+             float(area / 1e6), "Living floor area (cab zone to the bedroom wall), square metres")
     add_prop(empty, "App::PropertyFloat", "UsableLength_mm", "Coaster",
-             float(use_len), "Usable floor length behind the cab zone, millimetres")
+             float(use_len), "Living floor length from the cab zone to the bedroom wall, millimetres")
     add_prop(empty, "App::PropertyFloat", "UsableWidth_mm", "Coaster",
              float(use_w), "Interior width used for the usable floor, millimetres")
     add_prop(empty, "App::PropertyString", "CabinCondition", "Coaster",
-             "Passenger seats removed. Driver seat and dash retained. Floor runs from the cab zone to the front face of the internal Boot. Area excludes rear/front arch keep-outs and the entry step well.",
+             "Passenger seats removed. Driver seat and dash retained. Living floor runs from the cab zone to the bedroom wall (or the Boot if there is no bedroom). Area excludes arch keep-outs and the entry step well.",
              "Layout note")
     add_prop(flr, "App::PropertyFloat", "UsableArea_m2", "Coaster", float(area / 1e6),
-             "Usable empty cabin floor area, square metres")
+             "Living floor area, square metres")
 
     # Floor outline (wire) and centreline.
     outline_wire = Part.makePolygon([vec(x, y, floor_z + 8.0) for x, y in outline + [outline[0]]])
@@ -1112,6 +1485,8 @@ GROUP_LABELS = {
     "GRP_CABIN": "Cabin",
     "GRP_REF": "Reference",
     "GRP_ROOF": "Roof",
+    "GRP_STORAGE": "Storage",
+    "GRP_BEDROOM": "Bedroom",
 }
 
 FIXED_LABELS = {
@@ -1143,7 +1518,12 @@ FIXED_LABELS = {
     "CAB_STEERING": "Steering Wheel",
     "CAB_ENGINE_HUMP": "Engine Hump",
     "FLR_CABIN": "Cabin Floor",
-    "FLR_EMPTY_USABLE": "Usable Passenger Floor",
+    "FLR_EMPTY_USABLE": "Living Floor",
+    "FLR_BEDROOM": "Bedroom Floor",
+    "STEP_ENTRY": "Entry Step",
+    "BED_WALL": "Bedroom Wall",
+    "BED_DOOR": "Bedroom Door",
+    "BED_PLATFORM": "Bed Platform",
     "REF_FLOOR_OUTLINE": "Floor Outline",
     "REF_CENTRELINE": "Centreline",
     "REF_CAB_ZONE": "Cab Zone",
@@ -1169,6 +1549,12 @@ def display_label(name):
         return f"{_WHEEL_POS.get(name[9:], name[9:])} Tyre"
     if name.startswith("WHL_RIM_"):
         return f"{_WHEEL_POS.get(name[8:], name[8:])} Wheel"
+    if name.startswith("STO_BIN_T"):          # STO_BIN_T1 -> Through Storage Bin 1
+        return f"Through Storage Bin {name[9:]}"
+    for pre, word in (("STO_BIN_", "Storage Bin"), ("STO_FLAP_", "Storage Flap"), ("STO_LOCK_", "Lock Marker")):
+        if name.startswith(pre):              # STO_FLAP_L1 -> Left Storage Flap 1
+            rest = name[len(pre):]
+            return f"{_SIDE.get(rest[:1], rest[:1])} {word} {rest[1:]}"
     if name.startswith("ARCH_"):              # ARCH_REAR_L -> Rear Left Arch Housing
         _, axle, side = name.split("_", 2)
         return f"{axle.title()} {_SIDE.get(side, side)} Arch Housing"
@@ -1355,6 +1741,8 @@ def run():
         "GRP_CABIN": group("GRP_CABIN"),
         "GRP_REF": group("GRP_REF"),
         "GRP_ROOF": group("GRP_ROOF"),
+        "GRP_STORAGE": group("GRP_STORAGE"),
+        "GRP_BEDROOM": group("GRP_BEDROOM"),
     }
 
     computed = {
@@ -1410,8 +1798,31 @@ def run():
     add_arch_housings(V, colors, groups)
     add_boot_enclosure(V, colors, groups)
     add_cab(V, colors, groups)
+    add_entry_step(V, colors, groups)
+    S = add_storage(V, colors, groups)
     empty, area, use_len, use_w = add_floor_and_refs(V, colors, groups, computed)
     _ = empty
+    st = entry_step_layout(V)
+    computed["entry_step"] = {"group": "Cabin", "x0": st["x0"], "x1": st["x1"], "width": st["width"],
+                              "tread_depth": st["tread_depth"], "z_top": st["z_top"], "thickness": st["t"],
+                              "well_inner_abs_y": st["well_in"], "side": "left/kerb (y_sign_left)"}
+    computed["storage"] = {
+        "hinge": S["hinge"], "z0": S["z0"], "z1": S["z1"], "bin_height": S["z1"] - S["z0"],
+        "depth_inboard": S["depth"], "runs": S["runs"], "run_lengths": S["run_lengths"],
+        "segments": S["segments"], "limits": S["limits"],
+        "not_modelled": "Chassis rails, fuel tank, spare wheel, exhaust, driveshaft and other underfloor "
+                        "parts are NOT modelled. Measure the real underfloor before building bins.",
+    }
+    computed["living_floor_area_m2"] = area / 1e6
+    computed["living_floor_x0_mm"] = Vv(V, "cab_zone_length")
+    computed["living_floor_x1_mm"] = Vv(V, "cab_zone_length") + use_len
+    if flag(V, "bedroom_enabled", True):
+        Bd, b_area, b_len, b_cut = add_bedroom(V, colors, groups, cavity)
+        computed["bedroom"] = dict(Bd)
+        computed["bedroom_floor_area_m2"] = b_area / 1e6
+        computed["bedroom_floor_length_mm"] = b_len
+        computed["bedroom_floor_cutouts"] = b_cut
+        computed["bedroom_footprint_m2"] = Bd["bedroom_length"] * Vv(V, "interior_width") / 1e6
 
     recompute()
 
@@ -1460,6 +1871,14 @@ def run():
         "FLR_CABIN": colors["floor_color"],
         "FLR_EMPTY": colors["usable_floor_color"],
         "REF_CAB_ZONE": (0.75, 0.62, 0.35),
+        "STEP_": colors["bumper_color"],
+        "STO_BIN": colors["arch_color"],
+        "STO_FLAP": colors.get("body_lower_color", colors["body_color"]),
+        "STO_LOCK": colors["light_rear_color"],
+        "BED_WALL": (0.86, 0.83, 0.76),
+        "BED_DOOR": colors["dash_color"],
+        "BED_PLATFORM": colors["seat_color"],
+        "FLR_BEDROOM": colors["usable_floor_color"],
     }
 
     def color_for(name):
@@ -1472,7 +1891,9 @@ def run():
     recompute()
     door_state = {}
     for nm, props in (("DR_ENTRY", ("OpenFraction", "SwingPhase", "SwingOut", "SlideTravel")),
-                      ("DR_DRIVER", ("OpenAngle",)), ("DR_BOOT_LID", ("OpenAngle",))):
+                      ("DR_DRIVER", ("OpenAngle",)), ("DR_BOOT_LID", ("OpenAngle",)),
+                      ("BED_DOOR", ("OpenFraction", "SlideTravel"))) + tuple(
+                          (o.Name, ("OpenAngle",)) for o in doc.Objects if o.Name.startswith("STO_FLAP_")):
         o = doc.getObject(nm)
         if o is not None:
             door_state[nm] = {p: float(getattr(o, p)) for p in props if hasattr(o, p)}
@@ -1532,8 +1953,13 @@ def run():
         if sc:
             print(f"  {key}: valid={sc['valid']} closed={sc['closed']} solids={sc['solids']} "
                   f"check={sc['check']} volume={sc['volume_m3']} m^3")
-    print("---- usable empty passenger floor ----")
+    print("---- living floor (cab zone to bedroom wall) ----")
     print(f"  length {use_len:.0f} mm  width {use_w:.0f} mm  area {area/1e6:.2f} m^2")
+    if "bedroom" in computed:
+        b = computed["bedroom"]
+        print(f"  bedroom: wall_x {b['wall_x']:.1f}, length {b['bedroom_length']:.0f}, clear floor "
+              f"{computed['bedroom_floor_area_m2']:.2f} m^2, mattress overrun {b['mattress_overrun_mm']:+.0f} mm")
+    print(f"  storage runs {computed['storage']['runs']} hinge={computed['storage']['hinge']}")
     print("build ok")
     return doc
 

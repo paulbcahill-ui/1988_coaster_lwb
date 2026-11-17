@@ -55,7 +55,10 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 - `door_controls` sets the **build-time** door states. PNG/STEP/STL show those states, not whatever was
   last clicked in the GUI.
 - Fixed figures: 6860 L x 1995 W x 2550 H (high roof), wheelbase 3800, interior width 1800.
-  Usable floor: 4262.5 x 1800, 6.42 m². It runs from the cab zone (1500) to the internal boot face (5762.5).
+  Living floor: 2582.5 x 1800, 4.32 m², from the cab zone (1500) to the bedroom wall (4082.5).
+  Bedroom: 2630 long, bed over the boot, 0.73 m² clear walkway. `usable_floor_*` = living floor.
+- Null values mean "derived" (e.g. `entry_step_width`, `storage_*_runs`, `bedroom_wall_x`); set a number to
+  override. Strings and booleans live in `layout_options`.
 
 ## 5. Axes and sides (Australian RHD)
 
@@ -74,7 +77,8 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 - Internal Names stay stable (`BODY_SHELL`, `BODY_ROOF`, `DR_ENTRY`, `GLZ_*`, `WHL_*`, `GRP_*`, ...).
   The renderer, colours and expressions key on **Names**, so relabelling in the GUI is harmless.
   Do not rename Names without updating macro 20 and the expressions.
-- Groups (Labels): Exterior, Roof, Floor, Glazing, Doors, Wheels, Wheel Arches, Cab, Cabin, Reference.
+- Groups (Labels): Exterior, Roof, Floor, Glazing, Doors, Wheels, Wheel Arches, Cab, Cabin, Reference,
+  Storage, Bedroom. Entry Step is in Cabin.
 - `display_label()` / `FIXED_LABELS` in macro 10 own the mapping. Add new objects there.
 
 ## 7. Operable doors
@@ -91,6 +95,8 @@ door's Placement.
 | Entry Door | `SlideTravel` (mm) | 0–2000 | 850, verify |
 | Driver Door (+Y) | `OpenAngle` (deg) | 0–70 | 0, hinged on its front edge, opens outward |
 | Boot Lid | `OpenAngle` (deg) | 0–85 | 0, top-hinged, opens up and out |
+| Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
+| Bedroom Door | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–2000 | 0, 740; slides toward the offside |
 
 - The controls are on the door objects, not the Doors group. A child's expression that reads its own
   group would be a dependency cycle.
@@ -143,5 +149,9 @@ door's Placement.
   cabin.
 - **Door expressions were written untested** (`placement()`, `rotation()`, `vector()`, `min`/`max`, `;`
   separators). After the first run, check `failed_ops` and try each door property once.
+- **Underfloor is not modelled** (chassis rails, tank, spare, exhaust, driveshaft). The storage bins
+  only fill the 200 mm slab between skirt and floor; treat them as placeholders until measured.
+- **King mattress is 30 mm wider than the interior.** The platform is clamped to 1800 and the overrun is
+  reported in `bedroom.mattress_overrun_mm`; don't hide it.
 - **Usage**: Paul pays per use. Plan carefully, get it right in as few runs as possible, and don't iterate
   renders without need.
