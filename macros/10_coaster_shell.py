@@ -47,7 +47,8 @@ Body (rebuilt 2026-11-17):
     face of the wall... revised again to Paul's spec: one Wardrobe over each rear arch
     housing against the side wall, its Base enclosing the housing, doors facing the
     centreline (double swing, handles, OpenAngle each), cross Rails along Y, fixed
-    Top Panel; the bed is notched beside the wardrobes, wall stays at 4300).
+    Top Panel; shortened to end bed_wardrobe_gap forward of the bed, bed full width,
+    wall stays at 4300).
   * Glass panes are separate thin solids recessed inside their openings, so
     nothing pokes through the roof or the cutaway plane.
   * The cutaway view uses true planar booleans at cutaway_z (stored in the
@@ -513,7 +514,7 @@ def rotate_local(pts, u, th):
 
 def wardrobe_layout(V, Bd):
     """Paul's spec (17 Nov 2026): one Wardrobe per side over the rear arch housing, against the side
-    wall, x over the housing, wardrobe_hanger_depth inward (to the door backs). Doors face the
+    wall, x from the bedroom wall to bed_x0 - bed_wardrobe_gap, wardrobe_hanger_depth inward (to the door backs). Doors face the
     centreline; clothes hang on Rails across the bus (along Y). The Base encloses the arch housing.
     Pure Python, worked as |y| on the +Y side (mirrored). Clashes are reported, never designed out."""
     iw = Vv(V, "interior_width")
@@ -527,7 +528,7 @@ def wardrobe_layout(V, Bd):
     yb = iw / 2.0 - depth
     yf = yb - t                                         # door fronts (hinge line)
     x0 = Bd["rear_arch_x0"]
-    x1 = x0 + opt(V, "wardrobe_length", Vv(V, "rear_arch_length"))
+    x1 = Bd["bed_x0"] - Vv(V, "bed_wardrobe_gap")      # ends just forward of the bed (Paul, 17 Nov)
     base_z = opt(V, "wardrobe_base_z", Bd["rear_arch_top_z"] + pt)
     z_top = Bd["ceiling_z"] - Vv(V, "wardrobe_ceiling_gap")
     zt = z_top - Vv(V, "wardrobe_top_panel_height")
@@ -546,12 +547,8 @@ def wardrobe_layout(V, Bd):
     hl = Vv(V, "wardrobe_handle_length")
     hz = min(max(floor + Vv(V, "wardrobe_handle_height_above_floor"), zb + hl / 2.0 + 20.0), zt - hl / 2.0 - 20.0)
     hi = dc(V, "wardrobe_door_max_angle", 100.0)
-    # Bed (as built, after any notch) and mattress top, for the swing check.
+    # Bed (full width) and mattress top, for the swing check.
     bed_x0 = Bd["bed_x0"]
-    notch = bool(flag(V, "bed_narrow_beside_wardrobes", True))
-    bgap = Vv(V, "bed_wardrobe_gap")
-    notch_x1 = x1 + bgap
-    bed_half_beside = (yf - bgap) if notch else iw / 2.0
     mattress_top = Bd["platform_top_z"] + Vv(V, "bed_mattress_thickness")
     door_hits_bed_height = zb < mattress_top
     pts0 = {}
@@ -573,8 +570,7 @@ def wardrobe_layout(V, Bd):
             if first["wall"] is None and min(xs) < Bd["wall_x"]:
                 first["wall"] = th
             if first["bed_mattress"] is None and door_hits_bed_height and any(
-                    x > bed_x0 and abs(y) < (bed_half_beside if x < notch_x1 else iw / 2.0)
-                    for x, y in list(zip(xs, ys))[:-1]):     # leaf only: the handle is above the mattress
+                    x > bed_x0 for x, _ in list(zip(xs, ys))[:-1]):   # leaf only: the handle is above the mattress
                 first["bed_mattress"] = th
             if abs(th - 90.0) < 1e-6:
                 at90 = {"x_min": round(min(xs), 1), "x_max": round(max(xs), 1), "min_abs_y": round(min(ys), 1),
@@ -604,11 +600,13 @@ def wardrobe_layout(V, Bd):
         if ov > 0.0:
             covers.append({"side_window": i + 1, "x0": round(max(a, x0), 1), "x1": round(min(b, x1), 1),
                            "overlap_mm": round(ov, 1), "of_mm": round(b - a, 1)})
-    bed_overlap = max(0.0, x1 - bed_x0)
-    if bed_overlap > 0.0:
-        clashes.append(f"Wardrobe footprint overlaps the bed platform/mattress for x {bed_x0:.1f}-{x1:.1f} "
-                       f"(|y| {yf:.0f}-{iw / 2.0:.0f}): " + (f"bed notched to {2.0 * bed_half_beside:.0f} wide "
-                       f"for x {bed_x0:.1f}-{min(notch_x1, Bd['bed_x1']):.1f}" if notch else "NOT resolved (notch off)"))
+    if x1 > bed_x0:
+        clashes.append(f"Wardrobe footprint overlaps the bed for x {bed_x0:.1f}-{x1:.1f}")
+    if x1 <= x0 + 2.0 * f + 50.0:
+        clashes.append(f"Wardrobe length {x1 - x0:.1f} leaves no room for doors")
+    if slot < hanger:
+        clashes.append(f"Hangers ({hanger:.0f}) do not fit the {int_len:.1f} internal length along X "
+                       f"({slot:.1f} per rail)")
     door_w = Bd["door_w"]
     if 2.0 * yf < door_w:
         clashes.append(f"Passage between closed wardrobe fronts {2.0 * yf:.0f} < doorway {door_w:.0f}")
@@ -630,25 +628,9 @@ def wardrobe_layout(V, Bd):
         "garments_per_rail": int(rail_len // pitch), "garments_per_side": nr * int(rail_len // pitch),
         "passage_closed": round(2.0 * yf, 1), "passage_one_side_open_90": round(yf + open_edge, 1),
         "passage_both_open_90": round(2.0 * open_edge, 1), "doorway_width": door_w,
-        "bed_notch": {"enabled": notch, "x0": bed_x0, "x1": min(notch_x1, Bd["bed_x1"]),
-                      "width_beside": 2.0 * bed_half_beside, "gap": bgap} if bed_overlap > 0 else None,
+        "bed_gap": round(bed_x0 - x1, 1),
         "covers_side_windows": covers, "clashes": clashes,
     }
-
-
-def bed_notch_boxes(V, Bd, W):
-    """Boxes cut from the Bed Platform and Mattress beside the Wardrobes (bed_narrow_beside_wardrobes)."""
-    if not W or not W.get("bed_notch") or not W["bed_notch"]["enabled"]:
-        return []
-    iw = Vv(V, "interior_width")
-    nb = W["bed_notch"]
-    half = nb["width_beside"] / 2.0
-    out = []
-    for s in sides(V):
-        y0, y1 = span(s, half, iw / 2.0 + 200.0)
-        out.append(box(nb["x1"] - nb["x0"] + 1.0, y1 - y0, Bd["ceiling_z"] - Vv(V, "floor_height") + 20.0,
-                       nb["x0"] - 1.0, y0, Vv(V, "floor_height") - 10.0))
-    return out
 
 
 def bedroom_layout(V):
@@ -1460,11 +1442,7 @@ def add_bedroom(V, colors, groups, cavity):
             base = deck if base is None else as_single_solid(try_fuse(base, deck, "bed_platform"), "bed_platform")
     else:
         base = box(bx1 - bx0, pw, ptop - floor, bx0, -pw / 2.0, floor)
-    Wl = wardrobe_layout(V, Bd) if Bd.get("wardrobes_enabled") else None
-    Bd["bed_notches"] = bed_notch_boxes(V, Bd, Wl)
     if base is not None:
-        for k, nb in enumerate(Bd["bed_notches"]):
-            base = try_cut(base, nb, f"bed_platform_notch_{k}")
         plat = add_shape("BED_PLATFORM", base, grp, colors.get("seat_color", (0.3, 0.3, 0.4)))
         add_prop(plat, "App::PropertyString", "Mattress", "Coaster",
                  f"{Bd['mattress_across_y']:.0f} across x {Bd['mattress_along_x']:.0f} along ({Bd['orientation']}); "
@@ -1474,7 +1452,6 @@ def add_bedroom(V, colors, groups, cavity):
     Bd["fitout"] = add_bed_fitout(V, colors, groups, Bd)
     Wd = add_wardrobes(V, colors, groups, Bd, cavity) if Bd.get("wardrobes_enabled") else None
     Bd["wardrobes"] = Wd
-    Bd.pop("bed_notches", None)
     # Bedroom floor: the walkway between the wall and the bed, minus arch and wardrobe keep-outs.
     outline, area, blen, bw, cut = usable_floor_parts(V, Bd["wall_x"], bx0)
     if Wd:
@@ -1553,8 +1530,6 @@ def add_bed_fitout(V, colors, groups, Bd):
         except Exception as exc:
             print(f"  mattress crown failed: {exc}; flat top")
             FAILED_OPS.append("mattress_crown")
-    for k, nb in enumerate(Bd.get("bed_notches", [])):
-        mat = try_cut(mat, nb, f"mattress_notch_{k}")
     mobj = add_shape("BED_MATTRESS", mat, gbed, colors.get("mattress_color", (0.55, 0.62, 0.72)))
     add_prop(mobj, "App::PropertyString", "Size", "Coaster",
              f"{mw:.0f} wide x {ml:.0f} long x {th:.0f} thick (crown {crown:.0f}); nominal, verify", "Mattress size")

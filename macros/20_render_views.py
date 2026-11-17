@@ -226,7 +226,7 @@ def draw_plan(params, V, computed, path):
                 ha="center", va="center", fontsize=6.5, color="#3a2a4a", zorder=8)
         dim_line(ax, (bd["wall_x"], W / 2), (L - wall, W / 2), f"bedroom {bd['bedroom_length']:.0f}", (0, 140), fontsize=7)
         # Wardrobes over the rear arch housings (Paul's spec): carcass + closed doors, cross rails, doors
-        # drawn open at 90 degrees (dashed), bed notch outline.
+        # drawn open at 90 degrees (dashed).
         wd = computed.get("wardrobes")
         if wd:
             for sg in (-1, 1):
@@ -239,10 +239,6 @@ def draw_plan(params, V, computed, path):
                 for lf in wd["leaves"]:
                     ax.plot([lf["hinge_x"]] * 2, [sg * wd["y_front"], sg * (wd["y_front"] - wd["leaf_w"])],
                             color="#a03030", lw=0.8, ls="--", zorder=7)
-            nb = wd.get("bed_notch")
-            if nb and nb.get("enabled"):
-                ax.add_patch(Rectangle((nb["x0"], -nb["width_beside"] / 2), nb["x1"] - nb["x0"], nb["width_beside"],
-                                       fill=False, ec="#4a3a5a", lw=0.8, ls="-.", zorder=7))
             ax.text(wd["x0"] + 20, 0, f"WARDROBES over arches {wd['x_external']:.0f} x {wd['y_external']:.0f}\n"
                     f"{wd['rails']} cross rails ~{wd['garments_per_side']} garments\npassage {wd['passage_closed']:.0f} "
                     f"closed vs {wd['doorway_width']:.0f}; {len(wd['clashes'])} clashes (see json)", ha="left",

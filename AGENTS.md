@@ -188,20 +188,20 @@ door's Placement.
 ## Bedroom fit-out notes (17 Nov 2026, Paul's wardrobe spec: build exactly this)
 
 - Paul specified this layout. Do not redesign it. Report clashes in `wardrobes.clashes`; don't design them out.
-- Each Wardrobe sits over the rear arch housing against its side wall: x 4300–5500 (`wardrobe_length` blank
-  means the arch length), `wardrobe_hanger_depth` (520) inward to the back of the doors, door fronts at |y| 362.
+- Each Wardrobe sits over the rear arch housing against its side wall. In x it runs from the wall (4300) to
+  bed_x0 - `bed_wardrobe_gap` (4722.5), so it never enters the bed. `wardrobe_hanger_depth` (520) runs inward
+  to the back of the doors; door fronts are at |y| 362.
 - The Base runs from the floor to `wardrobe_base_z` (blank means arch top + panel = 1118) and is cut around
-  the housing, so the housing sits inside it. The carcass above (end panels and top; the bus wall is the back)
-  runs to 10 below the ceiling.
+  the housing where the wardrobe is. Aft of the wardrobe the housing runs on under the bed, unchanged. The
+  carcass above (end panels and top; the bus wall is the back) runs to 10 below the ceiling.
 - Doors face the centreline. There are `wardrobe_door_leaves` (2) leaves; odd-numbered doors hinge forward,
   even-numbered aft, with 50 end fillers. They run z 1121–2320 with a fixed Top Panel above.
 - Rails run across the bus (along Y), perpendicular to the doors, as Paul specified. `wardrobe_rail_count`
-  blank means as many as fit at `hanger_width` + 50 each (2).
-- With `bed_narrow_beside_wardrobes` on, the Bed Platform and Mattress are notched beside the wardrobes to
-  the door fronts minus `bed_wardrobe_gap`: 704 wide for x 4732.5–5510.
+  blank means as many as fit at `hanger_width` + 50 each, minimum 1.
+- The Bed Platform and Mattress are full width (1800) for their whole length. There is no notch.
 - `wardrobe_layout()` sweeps each door 0–100° and records the angle where it first meets the opposite door,
-  the wall or the mattress, plus window overlaps and the passage width. Results are in `usable_floor.json`
-  under `wardrobes.leaves` and `wardrobes.clashes`.
+  the wall or the bed, plus window overlaps, hanger fit and the passage width. Results are in
+  `usable_floor.json` under `wardrobes.leaves` and `wardrobes.clashes`.
 - Reading lamps sit on the solid side-wall strip between the last side window and the rear wall
   (x 6545–6762.5), not on glass.
 

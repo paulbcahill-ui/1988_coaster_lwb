@@ -1131,13 +1131,6 @@
       "urls": [],
       "notes": "Check only."
     },
-    "wardrobe_length": {
-      "value": null,
-      "confidence": "derived",
-      "source": "Bedroom fit-out (Paul's spec): Wardrobe length along the bus, mm, starting at the forward face of the rear arch housing. null = rear_arch_length (x 4300-5500).",
-      "urls": [],
-      "notes": "Set a number to override."
-    },
     "wardrobe_base_z": {
       "value": null,
       "confidence": "derived",
@@ -1162,7 +1155,7 @@
     "bed_wardrobe_gap": {
       "value": 10,
       "confidence": "nominal",
-      "source": "Bedroom fit-out: gap between the notched Bed Platform / Mattress and the Wardrobe fronts, mm (bed_narrow_beside_wardrobes).",
+      "source": "Bedroom fit-out: gap between the aft end of each Wardrobe and the front of the bed platform, mm. Wardrobe length = bed_x0 - this - bedroom wall x (422.5 at defaults).",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     }
@@ -1440,7 +1433,7 @@
     },
     "wardrobes_enabled": {
       "value": true,
-      "source": "Build Paul's Wardrobes over the rear arch housings, doors facing the centreline."
+      "source": "Build Paul's Wardrobes over the rear arch housings (wall to just forward of the bed), doors facing the centreline."
     },
     "pillow_count": {
       "value": 2,
@@ -1452,11 +1445,7 @@
     },
     "wardrobe_rail_count": {
       "value": null,
-      "source": "Cross Rails (along Y) per Wardrobe. null = as many as fit at hanger_width + 50 each along the internal length (2 at 1164)."
-    },
-    "bed_narrow_beside_wardrobes": {
-      "value": true,
-      "source": "Notch the Bed Platform and Mattress beside the Wardrobes (to the wardrobe fronts - bed_wardrobe_gap) so nothing overlaps. false = leave the overlap (reported)."
+      "source": "Cross Rails (along Y) per Wardrobe. null = as many as fit at hanger_width + 50 each along the internal length, minimum 1 (1 at 386.5)."
     }
   },
   "windows": {
