@@ -101,6 +101,10 @@ door's Placement.
 | Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
 | Bedroom Door Left | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
 
+- Windows: each pane (GLZ_*) has a bool `Glazed`; GLZ_* and its FIL_* filler have Visibility expressions
+  on it (output-property expressions, evaluated after recompute). Window Count (WIN_COUNT, in Glazing)
+  holds `GlazedCount`/`SolidCount`/`WindowTotal`. Build-time states come from params `windows` (by Label);
+  exports/renders/dims skip the inactive object (INACTIVE set). Never toggle these with Space.
 - Bedroom Door Right has no controls: its Placement reads Bedroom Door Left's (one-way, no cycle).
 - The controls are on the door objects, not the Doors group. A child's expression that reads its own
   group would be a dependency cycle.

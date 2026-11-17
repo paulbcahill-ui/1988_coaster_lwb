@@ -884,5 +884,56 @@
       "value": true,
       "source": "true = bed platform over the internal boot (boot forms the rear of the base, saves ~1000 mm of cabin). false = bed forward of the boot."
     }
+  },
+  "windows": {
+    "_note": "Build-time Glazed state per window, keyed by plain Label. true = glass, false = solid skin (a body-colour filler fills the opening). Macro 10 sets each pane's Glazed property from this; toggling Glazed in the GUI + recompute swaps glass/filler live, but PNGs/STEP/STL follow these values. Missing labels default to true.",
+    "Windscreen Left": {
+      "value": true
+    },
+    "Windscreen Right": {
+      "value": true
+    },
+    "Left Side Window 1": {
+      "value": true
+    },
+    "Left Side Window 2": {
+      "value": true
+    },
+    "Left Side Window 3": {
+      "value": true
+    },
+    "Left Side Window 4": {
+      "value": true
+    },
+    "Left Side Window 5": {
+      "value": true
+    },
+    "Right Side Window 1": {
+      "value": true
+    },
+    "Right Side Window 2": {
+      "value": true
+    },
+    "Right Side Window 3": {
+      "value": true
+    },
+    "Right Side Window 4": {
+      "value": true
+    },
+    "Right Side Window 5": {
+      "value": true
+    },
+    "Passenger Side Window": {
+      "value": true
+    },
+    "Rear Window": {
+      "value": true
+    },
+    "Entry Door Glass": {
+      "value": true
+    },
+    "Driver Door Glass": {
+      "value": true
+    }
   }
 }

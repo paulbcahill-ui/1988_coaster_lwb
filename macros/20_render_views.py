@@ -382,6 +382,13 @@ def draw_elevation(params, V, computed, path):
         color="#2f6b2f", lw=0.8, ls="--", zorder=3,
     )
 
+    # Build-time Glazed states (solid windows are drawn in body colour).
+    glazed = {r["label"]: r["glazed"] for r in computed.get("windows", {}).get("per_window", [])}
+    params_w = {k: v.get("value", True) for k, v in params.get("windows", {}).items() if isinstance(v, dict)}
+
+    def win_fc(label):
+        return "#6aa3c7" if glazed.get(label, params_w.get(label, True)) else "#e9e6de"
+
     # Window band
     sill = mm(V, "window_sill_z")
     whead = mm(V, "window_head_z")
@@ -389,7 +396,7 @@ def draw_elevation(params, V, computed, path):
     ex, ew, eh = mm(V, "entry_door_x"), mm(V, "entry_door_width"), mm(V, "entry_door_height")
     e_top = min(floor + eh, whead)
     ax.add_patch(Rectangle((ex, skirt), ew, e_top - skirt, fc="#e9e6de", ec="#222", lw=0.8, zorder=4))
-    ax.add_patch(Rectangle((ex + 50, floor + 750), ew - 100, eh - 900, fc="#6aa3c7", ec="#222", lw=0.6, zorder=5, alpha=0.8))
+    ax.add_patch(Rectangle((ex + 50, floor + 750), ew - 100, eh - 900, fc=win_fc("Entry Door Glass"), ec="#222", lw=0.6, zorder=5, alpha=0.8))
     ax.text(ex + ew / 2, -160, "ENTRY DOOR", ha="center", va="top", fontsize=8, color="#1a4a7a")
 
     # Side windows — same layout as the macro
@@ -399,15 +406,16 @@ def draw_elevation(params, V, computed, path):
     pillar = 80.0
     win = (end - start - (n - 1) * pillar) / n
     x = start
-    for _ in range(n):
-        ax.add_patch(Rectangle((x, sill), win, whead - sill, fc="#6aa3c7", ec="#222", lw=0.6, zorder=4, alpha=0.7))
+    for i in range(n):
+        ax.add_patch(Rectangle((x, sill), win, whead - sill, fc=win_fc(f"Left Side Window {i + 1}"), ec="#222",
+                               lw=0.6, zorder=4, alpha=0.7))
         x += win + pillar
 
     # Passenger Side Window (fixed, kerb side, opposite the driver door)
     pwin = computed.get("passenger_window")
     if pwin:
         ax.add_patch(Rectangle((pwin["x0"], pwin["z0"]), pwin["x1"] - pwin["x0"], pwin["z1"] - pwin["z0"],
-                               fc="#6aa3c7", ec="#222", lw=0.6, zorder=4, alpha=0.7))
+                               fc=win_fc("Passenger Side Window"), ec="#222", lw=0.6, zorder=4, alpha=0.7))
 
     # Windscreen
     ax.add_patch(Polygon(
@@ -488,6 +496,8 @@ def draw_elevation(params, V, computed, path):
 
     area = computed.get("usable_floor_area_m2", 0)
     note = (
+        (f"Windows: {computed['windows']['glazed_count']} glazed, {computed['windows']['solid_count']} solid "
+         "(solid drawn in body colour)\n" if computed.get("windows") else "") +
         f"Living floor (cab zone to bedroom wall)  {computed.get('usable_floor_length_mm', 0):.0f} x "
         f"{computed.get('usable_floor_width_mm', 0):.0f} mm  =  {area:.2f} m²\n"
         "Standard-roof official height is 2380 mm; this model uses the high-roof case (2550 mm = 2380 + 170).\n"

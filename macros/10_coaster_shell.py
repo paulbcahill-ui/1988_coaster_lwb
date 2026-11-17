@@ -94,6 +94,9 @@ def load_params():
         for k, v in data.get(section, {}).items():
             if isinstance(v, dict) and "value" in v:
                 values[k] = v["value"]
+    # Build-time Glazed state per window, keyed by plain Label (True = glass, False = solid skin).
+    values["_windows"] = {k: bool(v["value"]) for k, v in data.get("windows", {}).items()
+                          if isinstance(v, dict) and "value" in v}
     return data, values
 
 
@@ -119,6 +122,8 @@ def vec(x, y, z):
 
 
 FAILED_OPS = []
+WINDOWS = []        # (glass object, filler object) per window, filled by add_glass_and_doors
+INACTIVE = set()    # Names hidden at build time (glass of a solid window, filler of a glazed one)
 
 
 def try_fuse(a, b, label="fuse"):
@@ -986,14 +991,25 @@ def add_glass_and_doors(doc, V, colors, groups):
     galpha = int(round(100 * (1.0 - float(colors.get("glass_alpha", 0.45)))))
     dcol = colors["body_color"]
 
-    def glass(name, shp):
-        return add_shape(name, shp, groups["GRP_GLAZING"], gcol, galpha)
+    wall = D["wall"]
+
+    def glass(name, shp, filler_shp=None, filler_col=None):
+        """Glass pane plus (optionally) its solid filler: skin-thick, body colour, flush in the
+        opening. Which one shows is set by the pane's Glazed property (see window_controls)."""
+        gobj = add_shape(name, shp, groups["GRP_GLAZING"], gcol, galpha)
+        if filler_shp is not None:
+            fobj = add_shape(name.replace("GLZ_", "FIL_", 1), filler_shp, groups["GRP_GLAZING"],
+                             filler_col or dcol)
+            WINDOWS.append((gobj, fobj))
+        return gobj
 
     # Two windscreen panes, recessed in the raked front.
     ws_z0, ws_z1, ws_yi, ws_yo = windscreen_layout(V, D)
     for tag, s in (("L", s_left), ("R", s_right)):
         y0, y1 = span(s, ws_yi + clr, ws_yo - clr)
-        glass(f"GLZ_WINDSCREEN_{tag}", front_prism(D, y0, y1, ws_z0 + clr, ws_z1 - clr, -recess, glass_t))
+        fy0, fy1 = span(s, ws_yi, ws_yo)
+        glass(f"GLZ_WINDSCREEN_{tag}", front_prism(D, y0, y1, ws_z0 + clr, ws_z1 - clr, -recess, glass_t),
+              front_prism(D, fy0, fy1, ws_z0, ws_z1, 0.0, wall))
 
     # Side windows.
     sill = Vv(V, "window_sill_z")
@@ -1002,18 +1018,23 @@ def add_glass_and_doors(doc, V, colors, groups):
         for tag, s in (("L", s_left), ("R", s_right)):
             glass(f"GLZ_SIDE_{tag}_{i}",
                   box(x1 - x0 - 2 * clr, glass_t, head - sill - 2 * clr,
-                      x0 + clr, side_slab_y(D, s, recess, glass_t), sill + clr))
+                      x0 + clr, side_slab_y(D, s, recess, glass_t), sill + clr),
+                  box(x1 - x0, wall, head - sill, x0, side_slab_y(D, s, 0.0, wall), sill))
 
     # Passenger Side Window: fixed glass, recessed like the side windows.
     pw = passenger_window_layout(V)
     if pw["x1"] - pw["x0"] > 50.0:
         glass("GLZ_PASSENGER", box(pw["x1"] - pw["x0"] - 2 * clr, glass_t, pw["z1"] - pw["z0"] - 2 * clr,
-                                   pw["x0"] + clr, side_slab_y(D, s_left, recess, glass_t), pw["z0"] + clr))
+                                   pw["x0"] + clr, side_slab_y(D, s_left, recess, glass_t), pw["z0"] + clr),
+              box(pw["x1"] - pw["x0"], wall, pw["z1"] - pw["z0"], pw["x0"],
+                  side_slab_y(D, s_left, 0.0, wall), pw["z0"]))
 
-    # Full-width rear window.
-    rw = rear_window_half_width(D) - clr
+    # Full-width rear window (filler spans the rear wall, inner face to the rear skin).
+    rw0 = rear_window_half_width(D)
+    rw = rw0 - clr
     glass("GLZ_REAR", box(glass_t, 2.0 * rw, head - sill - 2 * clr,
-                          D["x_rear"] - recess - glass_t, -rw, sill + clr))
+                          D["x_rear"] - recess - glass_t, -rw, sill + clr),
+          box(D["x_rear"] - (D["L"] - wall), 2.0 * rw0, head - sill, D["L"] - wall, -rw0, sill))
 
     def door_panel(name, s, x, width, z0, z1, win_frac):
         y = side_slab_y(D, s, 4.0, door_t)
@@ -1024,9 +1045,11 @@ def add_glass_and_doors(doc, V, colors, groups):
         cutter = box(width - 160.0, door_t + 20.0, win_h, x + 80.0, y - 10.0, win_z)
         panel = try_cut(panel, cutter, name + "_win")
         # Door glass is its own object (not in a compound) so it can follow the door's Placement.
+        # Its filler fills the leaf's window cut at leaf thickness and moves with the door too.
         gobj = glass(name.replace("DR_", "GLZ_"),
                      box(width - 164.0, glass_t, win_h - 4.0, x + 82.0,
-                         y + door_t / 2.0 - glass_t / 2.0, win_z + 2.0))
+                         y + door_t / 2.0 - glass_t / 2.0, win_z + 2.0),
+                     box(width - 160.0, door_t, win_h, x + 80.0, y, win_z))
         return add_shape(name, panel, groups["GRP_DOORS"], dcol), gobj
 
     ex = Vv(V, "entry_door_x")
@@ -1039,6 +1062,8 @@ def add_glass_and_doors(doc, V, colors, groups):
     # Hinge: front (low-X) vertical edge of the door leaf, on its outer face.
     make_driver_door_operable(V, driver, driver_glass, s_right,
                               dx + 4.0, s_right * (D["hw"] - 4.0))
+    for door in (entry, driver):
+        follow_placement(doc.getObject(door.Name.replace("DR_", "FIL_")), door)
 
     # Boot lid: flush in the lower rear-panel opening, top-hinged. Not a cabin door.
     B = boot_layout(V)
@@ -1308,6 +1333,64 @@ def make_bedroom_doors_operable(V, left, right, signs, travel):
                  f"placement(vector(0; {signs[tag]:.0f} * {f} * {n}.SlideTravel; 0); vector(0; 0; 1); 0)")
 
 
+# --------------------------------------------------------------------------
+# Glazed / solid windows
+#
+# Each window is a glass pane (GLZ_*) plus a filler (FIL_*): skin thickness, body colour,
+# flush in the opening. The pane carries a boolean 'Glazed'. Both objects' Visibility is an
+# EXPRESSION of that flag. Visibility is an App property flagged Output/Hidden/NoModify; the
+# expression engine still binds it, and Document::recompute evaluates Output-property
+# expressions after the feature executes (PropertyExpressionEngine::ExecuteOutput, FreeCAD
+# 1.0/1.1 App/Document.cpp), so the swap survives save/reopen and needs no add-on. Shapes and
+# Placements never change, so nothing moves out of the bounding box and door glass/fillers keep
+# following their doors. Exports/renders use the build-time state from params "windows".
+# --------------------------------------------------------------------------
+
+def window_controls(doc, V, groups, computed):
+    states = V.get("_windows", {})
+    rows = []
+    for gobj, fobj in WINDOWS:
+        label = display_label(gobj.Name)
+        glazed = bool(states.get(label, True))
+        add_prop(gobj, "App::PropertyBool", "Glazed", "Window", glazed,
+                 "True = glass, False = solid skin (filler shown). Recompute after changing.")
+        n = gobj.Name
+        for obj, expr, on in ((gobj, f"{n}.Glazed ? 1 : 0", glazed), (fobj, f"{n}.Glazed ? 0 : 1", not glazed)):
+            try:
+                obj.Visibility = on
+            except Exception:
+                pass
+            set_expr(obj, "Visibility", expr)
+            if not on:
+                INACTIVE.add(obj.Name)
+        rows.append({"label": label, "glass": n, "filler": fobj.Name, "glazed": glazed})
+    names = [g.Name for g, _ in WINDOWS]
+    glazed_n = sum(1 for r in rows if r["glazed"])
+    computed["windows"] = {"per_window": rows, "glazed_count": glazed_n,
+                           "solid_count": len(rows) - glazed_n, "total": len(rows)}
+    unknown = sorted(set(states) - {r["label"] for r in rows})
+    if unknown:
+        computed["windows"]["unknown_param_labels"] = unknown
+        print(f"  WARNING params windows labels with no window: {unknown}")
+    # Separate counter object (not the Glazing group, which links the panes).
+    try:
+        cnt = doc.addObject("App::FeaturePython", "WIN_COUNT")
+    except Exception:
+        cnt = doc.addObject("App::DocumentObjectGroup", "WIN_COUNT")
+    add_prop(cnt, "App::PropertyInteger", "WindowTotal", "Windows", len(rows), "Number of windows")
+    add_prop(cnt, "App::PropertyInteger", "GlazedCount", "Windows", glazed_n, "Windows with Glazed = True")
+    add_prop(cnt, "App::PropertyInteger", "SolidCount", "Windows", len(rows) - glazed_n,
+             "Windows with Glazed = False (solid skin)")
+    if names:
+        set_expr(cnt, "GlazedCount", " + ".join(f"({n}.Glazed ? 1 : 0)" for n in names))
+        set_expr(cnt, "SolidCount", "WIN_COUNT.WindowTotal - WIN_COUNT.GlazedCount")
+    try:
+        groups["GRP_GLAZING"].addObject(cnt)
+    except Exception as exc:
+        print(f"  Window Count not grouped: {exc}")
+    print(f"  windows: {glazed_n} glazed, {len(rows) - glazed_n} solid, {len(rows)} total")
+
+
 def add_wheels(V, colors, groups):
     od = Vv(V, "tyre_od")
     rim_d = Vv(V, "rim_diameter")
@@ -1572,6 +1655,7 @@ FIXED_LABELS = {
     "GLZ_WINDSCREEN_R": "Windscreen Right",
     "GLZ_REAR": "Rear Window",
     "GLZ_PASSENGER": "Passenger Side Window",
+    "WIN_COUNT": "Window Count",
     "DR_ENTRY": "Entry Door",
     "GLZ_ENTRY": "Entry Door Glass",
     "DR_DRIVER": "Driver Door",
@@ -1625,6 +1709,8 @@ def display_label(name):
         return f"{_WHEEL_POS.get(name[9:], name[9:])} Tyre"
     if name.startswith("WHL_RIM_"):
         return f"{_WHEEL_POS.get(name[8:], name[8:])} Wheel"
+    if name.startswith("FIL_"):               # FIL_SIDE_L_1 -> Left Side Window 1 Filler
+        return display_label("GLZ_" + name[4:]) + " Filler"
     if name.startswith("STO_BIN_T"):          # STO_BIN_T1 -> Through Storage Bin 1
         return f"Through Storage Bin {name[9:]}"
     for pre, word in (("STO_BIN_", "Storage Bin"), ("STO_FLAP_", "Storage Flap"), ("STO_LOCK_", "Lock Marker")):
@@ -1743,7 +1829,7 @@ def export_all(doc, P, meshes, computed):
     for obj in doc.Objects:
         if not hasattr(obj, "Shape"):
             continue
-        if obj.Name.startswith(skip_prefixes):
+        if obj.Name.startswith(skip_prefixes) or obj.Name in INACTIVE:
             continue
         if obj.Shape is None or obj.Shape.isNull():
             continue
@@ -1793,6 +1879,8 @@ def export_all(doc, P, meshes, computed):
 
 def run():
     del FAILED_OPS[:]
+    del WINDOWS[:]
+    INACTIVE.clear()
     P, V = load_params()
     colors = P["style"]
     deviation = float(P["export"]["tessellate_deviation_mm"])
@@ -1874,6 +1962,7 @@ def run():
     add_arch_housings(V, colors, groups)
     add_boot_enclosure(V, colors, groups)
     add_cab(V, colors, groups)
+    window_controls(doc, V, groups, computed)
     add_entry_step(V, colors, groups)
     S = add_storage(V, colors, groups)
     empty, area, use_len, use_w = add_floor_and_refs(V, colors, groups, computed)
@@ -1908,7 +1997,7 @@ def run():
     for obj in doc.Objects:
         if not obj.Name.startswith(("BODY_", "TRM_BUMPER", "LIT_", "GLZ_", "TRM_GRILLE")):
             continue
-        if obj.Name in ("GLZ_ENTRY", "GLZ_DRIVER"):   # moving with their doors
+        if obj.Name in ("GLZ_ENTRY", "GLZ_DRIVER") or obj.Name in INACTIVE:   # moving / hidden
             continue
         b = obj.Shape.BoundBox
         if bb is None:
@@ -1935,6 +2024,7 @@ def run():
         "LIT_HEAD": colors["light_front_color"],
         "LIT_TAIL": colors["light_rear_color"],
         "GLZ_": list(colors["glass_color"]) + [colors.get("glass_alpha", 0.45)],
+        "FIL_": colors["body_color"],
         "DR_BOOT": colors.get("body_lower_color", colors["body_color"]),
         "DR_": colors["body_color"],
         "WHL_TYRE": colors["tyre_color"],
@@ -1983,7 +2073,7 @@ def run():
     mesh_checks = {}
     meshes = []
     for obj in doc.Objects:
-        if not hasattr(obj, "Shape") or obj.Name.startswith("GRP_"):
+        if not hasattr(obj, "Shape") or obj.Name.startswith("GRP_") or obj.Name in INACTIVE:
             continue
         if obj.Name in ("REF_CENTRELINE", "REF_FLOOR_OUTLINE", "REF_EXTERIOR_ENVELOPE", "REF_EMPTY_CABIN_VOLUME"):
             # Keep wires out of the shaded render; the 2D drawings show them.
