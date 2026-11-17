@@ -225,21 +225,23 @@ def draw_plan(params, V, computed, path):
                 f"\nplatform z{bd['platform_top_z']:.0f}{' over boot' if bd['over_boot'] else ''}",
                 ha="center", va="center", fontsize=6.5, color="#3a2a4a", zorder=8)
         dim_line(ax, (bd["wall_x"], W / 2), (L - wall, W / 2), f"bedroom {bd['bedroom_length']:.0f}", (0, 140), fontsize=7)
-        # Wardrobes along the side walls (carcass + closed doors), doors drawn open at 90 degrees, dashed.
+        # Wardrobes at the side walls against the wall's aft face: carcass + closed doors, rail across
+        # the bus, doors drawn open at 90 degrees (dashed).
         wd = computed.get("wardrobes")
         if wd:
             for sg in (-1, 1):
-                y0 = min(sg * wd["y_front"], sg * wd["y_wall"])
-                ax.add_patch(Rectangle((wd["x0"], y0), wd["length"], wd["y_wall"] - wd["y_front"], fc="#c8b28f",
-                                       ec="#5a4a30", lw=0.6, zorder=6))
-                ax.plot([wd["x0"] + 18, wd["x1"] - 18], [sg * wd["rail_y_abs"]] * 2, color="#777", lw=0.8, zorder=7)
-                for hx in (wd["x0"] + wd["end_filler"], wd["x1"] - wd["end_filler"]):
-                    ax.plot([hx, hx], [sg * wd["y_front"], sg * (wd["y_front"] - wd["leaf_w"])], color="#5a4a30",
+                y0 = min(sg * wd["y_inner"], sg * wd["y_wall"])
+                ax.add_patch(Rectangle((wd["x0"], y0), wd["front_x"] - wd["x0"], wd["y_wall"] - wd["y_inner"],
+                                       fc="#c8b28f", ec="#5a4a30", lw=0.6, zorder=6))
+                ax.plot([wd["rail_x"]] * 2, [sg * wd["rail_y_abs"][0], sg * wd["rail_y_abs"][1]], color="#777", lw=0.8,
+                        zorder=7)
+                for hinge in (wd["y_inner"], wd["y_outer_hinge"]):
+                    ax.plot([wd["front_x"], wd["front_x"] + wd["leaf_w"]], [sg * hinge] * 2, color="#5a4a30",
                             lw=0.8, ls="--", zorder=7)
-            ax.text(wd["x1"] + 20, -iw / 2 + 60, f"WARDROBES {wd['length']:.0f} x {wd['depth_internal']:.0f} int, "
-                    f"doors {wd['leaf_w']:.0f} x2 (max {min(wd['limits_deg'].values()):.0f}°)\npassage "
-                    f"{wd['passage_closed']:.0f} closed / {wd['passage_both_open_90']:.0f} all open vs doorway "
-                    f"{wd['doorway_width']:.0f}", ha="left", va="bottom", fontsize=5.5, color="#5a4a30", zorder=8)
+            ax.text(wd["front_x"] + 20, 0, f"WARDROBES {wd['x_internal']:.0f} x {wd['y_internal']:.0f} int\n"
+                    f"rail {wd['rail_length']:.0f} (~{wd['garments_per_side']} garments)\npassage {wd['passage_closed']:.0f}"
+                    f" / {wd['passage_doors_open_90']:.0f} open vs {wd['doorway_width']:.0f}", ha="left", va="center",
+                    fontsize=5.5, color="#5a4a30", zorder=8)
 
     # Wheels
     def tyre(x, y, width=tw):
@@ -290,7 +292,7 @@ def draw_plan(params, V, computed, path):
     if bdf:
         short = (f" (SHORT of {bdf['walkway_target']:.0f} target)" if bdf.get("walkway_short_mm", 0) > 0 else "")
         mv = bdf.get("wall_moved_forward_mm", 0) or 0
-        where = f"{mv:.0f} forward of the rear arch housings (wardrobe_target_length)" if mv > 0.5 else "flush with rear arch housings"
+        where = f"{mv:.0f} forward of the rear arch housings, wardrobe_walkway" if mv > 0.5 else "flush with rear arch housings"
         bed_line = (f"Bedroom: wall rear face at x {bdf['wall_x']:.0f} ({where}), "
                     f"{bdf['bedroom_length']:.0f} long; walkway {bdf.get('walkway', 0):.0f}{short}; clear walkway floor "
                     f"{computed.get('bedroom_floor_area_m2', 0):.2f} m².  Dashed purple = underfloor storage bins.\n")

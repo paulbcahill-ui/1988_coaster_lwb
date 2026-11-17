@@ -55,11 +55,13 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 - `door_controls` sets the **build-time** door states. PNG/STEP/STL show those states, not whatever was
   last clicked in the GUI.
 - Fixed figures: 6860 L x 1995 W x 2550 H (high roof), wheelbase 3800, interior width 1800.
-  Living floor: 2750 x 1800, 4.63 m², from the cab zone (1500) to the bedroom wall's forward face (4250).
-  Bedroom: wall rear face at 4300, flush with the rear arch housings (`arch_housing_x0()`). Setting
-  `wardrobe_target_length` moves it forward to bed_x0 - that length. The bedroom is 2462.5 long, with the bed
-  over the boot and a 432.5 walkway (short of 600, flagged). Clear floor is 0.43 m² after the arches and
-  0.24 m² after the wardrobes too. `usable_floor_*` = living.
+  Living floor: 2212 x 1800, 3.66 m², from the cab zone (1500) to the bedroom wall's forward face (3712).
+  It was 4.63 m² before the wardrobes.
+  Bedroom: wall rear face at 3762 = bed_x0 - `wardrobe_walkway` - wardrobe length (538). The default
+  `wardrobe_walkway` is blank, which puts the door fronts flush with the rear arch housings' forward face
+  (4300, `arch_housing_x0()`), leaving a 432.5 walkway to the bed. The wall never goes aft of 4300. The
+  bedroom is 3000.5 long, with the bed over the boot and 0.92 m² clear floor after the arches and wardrobes.
+  `usable_floor_*` = living.
 - Null values mean "derived" (e.g. `entry_step_width`, `storage_*_runs`, `bedroom_wall_x`); set a number to
   override. Strings and booleans live in `layout_options`.
 
@@ -83,8 +85,8 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 - Groups (Labels): Exterior, Roof, Floor, Glazing, Doors, Wheels, Wheel Arches, Cab, Cabin, Reference,
   Storage, Bedroom. Entry Step is in Cabin. Bedroom holds the sub-groups Bedroom Doors, Bed (Mattress,
   Left/Right Pillow), Reading Lamps (Left/Right Reading Lamp + Shade) and Wardrobes (Left/Right Wardrobe,
-  ... Top Panel, ... Rail, ... Forward/Aft Door, ... Forward/Aft Handle). Names: BED_MATTRESS,
-  BED_PILLOW_L/R, BED_LAMP_L/R, BED_LAMP_SHADE_L/R, WRD_CARCASS_/TOP_/RAIL_<L|R>, WRD_DOOR_/WRD_HANDLE_<L|R><F|A>.
+  ... Top Panel, ... Base Panel, ... Rail, ... Outer/Inner Door, ... Outer/Inner Handle). Names: BED_MATTRESS,
+  BED_PILLOW_L/R, BED_LAMP_L/R, BED_LAMP_SHADE_L/R, WRD_CARCASS_/TOP_/BASE_/RAIL_<L|R>, WRD_DOOR_/WRD_HANDLE_<L|R><O|I>.
 - Passenger Side Window (kerb cab glass) mirrors the Driver Door Glass profile, trimmed to keep an 80 mm
   pillar before the entry door (x 900–1440, z 1445–2120).
 - `display_label()` / `FIXED_LABELS` in macro 10 own the mapping. Add new objects there.
@@ -105,7 +107,7 @@ door's Placement.
 | Boot Lid | `OpenAngle` (deg) | 0–85 | 0, top-hinged, opens up and out |
 | Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
 | Bedroom Doors (group, in Bedroom) | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
-| Left/Right Wardrobe Forward/Aft Door | `OpenAngle` (deg) | 0–limit (97 at defaults) | 0, hinged at the wall end / bed end, opens toward the centreline; handle follows |
+| Left/Right Wardrobe Outer/Inner Door | `OpenAngle` (deg) | 0–limit (outer 95.5, inner 100 at defaults) | 0, aft face, hinged at the outer/inner edge, opens aft toward the bed; handle follows |
 
 - Windows: each switchable window has a group GRP_WIN_* (in Glazing, Label = window name) holding
   GLZ_* "<window> Glass" and FIL_* "<window> Filler". The bool `Glazed` is on the GROUP; children's Visibility
@@ -186,23 +188,24 @@ door's Placement.
 - Skirt: `skirt_crease_z()` = `body_skirt_z` + `skirt_height`. **Skirt** (`TRM_SKIRT`) is a separate proud band;
   Body stays one solid. Storage flap tops sit on the crease; the bins stay 200 tall.
 
-## Bedroom fit-out notes (17 Nov 2026, wardrobes revised to side-wall)
+## Bedroom fit-out notes (17 Nov 2026, final wardrobe layout)
 
-- Wardrobes run along each side wall from the aft face of the bedroom wall to the front of the bed platform
-  (x 4300–4732.5), with doors facing the centreline. `wardrobe_layout()` is pure Python. The internal depth
-  is `wardrobe_internal_depth` (600, keep at least 550), measured from the side wall (the back) to the backs
-  of the doors. The door fronts are at |y| 282.
-- `leaf_sweep()` rotates each door and its handle tip in 0.5° steps. Each door's OpenAngle limit is the
-  smaller of `wardrobe_door_max_angle` (100) and the angle at which the door or handle comes within
-  `wardrobe_swing_margin` of the bedroom wall, the bed foot or the mirror-image door opposite. Results are in
-  `usable_floor.json` under `wardrobes.swing`; it is 97° at the defaults.
-- The rear arch housings (x 4300–5500, |y| 500–900, top z 1100) are inside the wardrobes. The carcass is cut
-  around them, and the housing top is the floor of the outer part. The doors sit at |y| 282 and never swing
-  over a housing, so they run full height (z 710–2320).
-- The passage between the closed wardrobes is 564, narrower than the 850 doorway. The forward end panels
-  cover 143 mm of the doorway on each side. See `wardrobes.passage_*`.
-- The Rail runs along X at |y| 600, z 2372. Hangers hang parallel to the doors and need about 550 of depth.
-  The 396.5 internal length is too short for 450 hangers end-on (`hangers_fit_end_on`).
+- Wardrobes stand against the aft face of the bedroom wall, one at each side wall. Clothes hang sideways on a
+  Rail across the bus (along Y), with hangers fore and aft. Inside, each is `wardrobe_hanger_depth` (520) in X
+  by `wardrobe_internal_width` (425, which is the rail length) in Y. The bedroom wall is the back; there is
+  no back panel. The double doors are on the aft face and open aft, the normal access.
+  `wardrobe_layout()` is pure Python.
+- The passage between the wardrobes is 914 with the doors closed and 854 with the doors open at 90°, both
+  wider than the 850 doorway.
+- `leaf_sweep()` rotates each door and its handle tip in 0.5° steps. The limit is the smaller of 100° and the
+  angle at which a door comes within `wardrobe_swing_margin` of the side wall, the bed or the opposite door.
+  It is 95.5° outer and 100° inner at the defaults.
+- The rear arch housings (x 4300–5500, |y| 500–900, top z 1100) are not under the carcass. The door swing
+  passes over them, so the doors start at the arch top + 20 (z 1120), with a fixed Base Panel below; clothes
+  still hang to the floor behind it. The doors run full height (z 710) only when `wardrobe_walkway` is at
+  least about 640, which moves the wall a further 207.5 forward.
+- The wall at 3762 crosses the end of Side Window 2 by about 16 mm. The wardrobes cover most of Side Window 3
+  (x 3788–4300).
 - Reading lamps sit on the solid side-wall strip between the last side window and the rear wall
   (x 6545–6762.5), not on glass.
 
