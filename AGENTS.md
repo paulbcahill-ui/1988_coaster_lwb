@@ -55,8 +55,9 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 - `door_controls` sets the **build-time** door states. PNG/STEP/STL show those states, not whatever was
   last clicked in the GUI.
 - Fixed figures: 6860 L x 1995 W x 2550 H (high roof), wheelbase 3800, interior width 1800.
-  Living floor: 2582.5 x 1800, 4.32 m², from the cab zone (1500) to the bedroom wall (4082.5).
-  Bedroom: 2630 long, bed over the boot, 0.73 m² clear walkway. `usable_floor_*` = living floor.
+  Living floor: 2750 x 1800, 4.63 m², from the cab zone (1500) to the bedroom wall's forward face (4250).
+  Bedroom: wall rear face at 4300, flush with the rear arch housings (shared `arch_housing_x0()`); 2462.5
+  long, bed over the boot, walkway 432.5 (short of 600, flagged), 0.43 m² clear. `usable_floor_*` = living.
 - Null values mean "derived" (e.g. `entry_step_width`, `storage_*_runs`, `bedroom_wall_x`); set a number to
   override. Strings and booleans live in `layout_options`.
 
@@ -96,8 +97,9 @@ door's Placement.
 | Driver Door (+Y) | `OpenAngle` (deg) | 0–70 | 0, hinged on its front edge, opens outward |
 | Boot Lid | `OpenAngle` (deg) | 0–85 | 0, top-hinged, opens up and out |
 | Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
-| Bedroom Door | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–2000 | 0, 740; slides toward the offside |
+| Bedroom Door Left | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
 
+- Bedroom Door Right has no controls: its Placement reads Bedroom Door Left's (one-way, no cycle).
 - The controls are on the door objects, not the Doors group. A child's expression that reads its own
   group would be a dependency cycle.
 - Keep `SwingOut` at 45 mm or more, or the sliding door clips the rub strip.

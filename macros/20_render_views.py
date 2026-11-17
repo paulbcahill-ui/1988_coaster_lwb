@@ -204,12 +204,16 @@ def draw_plan(params, V, computed, path):
         yc, dw = bd["door_y_center"], bd["door_w"]
         ax.add_patch(Rectangle((bd["wall_x0"] - 2, yc - dw / 2), bd["wall_t"] + 4, dw, fc="white",
                                ec="none", zorder=6))
-        lw_ = bd["door_leaf_w"]
-        ax.add_patch(Rectangle((bd["wall_x0"] - 5 - bd["door_t"], yc - lw_ / 2), bd["door_t"], lw_,
-                               fc="#4a4f5a", ec="#111", lw=0.5, zorder=7))
-        ax.annotate("", xy=(bd["wall_x0"] - 60, yc + bd["door_slide_sign"] * (lw_ / 2 + 250)),
-                    xytext=(bd["wall_x0"] - 60, yc + bd["door_slide_sign"] * lw_ / 2),
-                    arrowprops=dict(arrowstyle="->", color="#4a4f5a", lw=0.8), zorder=7)
+        # Centred bi-parting leaves (closed), with arrows to each side wall.
+        lw_, g2 = bd["door_leaf_w"], bd.get("door_centre_gap", 2) / 2
+        for sg in (-1, 1):
+            y0 = min(sg * g2, sg * (g2 + lw_))
+            ax.add_patch(Rectangle((bd["wall_x0"] - 5 - bd["door_t"], y0), bd["door_t"], lw_,
+                                   fc="#4a4f5a", ec="#111", lw=0.5, zorder=7))
+            ax.annotate("", xy=(bd["wall_x0"] - 80, sg * (g2 + bd["door_travel"])), xytext=(bd["wall_x0"] - 80, sg * 40),
+                        arrowprops=dict(arrowstyle="->", color="#4a4f5a", lw=0.8), zorder=7)
+        ax.text(bd["wall_x0"] - 120, 0, f"BI-PARTING\nDOORS {dw:.0f}", ha="right", va="center", fontsize=6,
+                color="#4a4f5a", zorder=8)
         pw = bd["platform_width"]
         ax.add_patch(Rectangle((bd["bed_x0"], -pw / 2), bd["bed_x1"] - bd["bed_x0"], pw, fc="#b9a6c9",
                                ec="#4a3a5a", lw=0.8, alpha=0.6, zorder=4, label="Bed platform"))
@@ -269,7 +273,9 @@ def draw_plan(params, V, computed, path):
     area = computed.get("usable_floor_area_m2", use_len * use_w / 1e6)
     bed_line = ""
     if bdf:
-        bed_line = (f"Bedroom: wall at x {bdf['wall_x']:.0f}, {bdf['bedroom_length']:.0f} long; clear walkway floor "
+        short = (f" (SHORT of {bdf['walkway_target']:.0f} target)" if bdf.get("walkway_short_mm", 0) > 0 else "")
+        bed_line = (f"Bedroom: wall rear face at x {bdf['wall_x']:.0f} (flush with rear arch housings), "
+                    f"{bdf['bedroom_length']:.0f} long; walkway {bdf.get('walkway', 0):.0f}{short}; clear walkway floor "
                     f"{computed.get('bedroom_floor_area_m2', 0):.2f} m².  Dashed purple = underfloor storage bins.\n")
     note = (
         f"Living floor  {use_len:.0f} x {use_w:.0f} mm   =   {area:.2f} m²   (cab zone to the bedroom wall)\n"

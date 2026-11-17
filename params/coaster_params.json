@@ -574,16 +574,16 @@
     "bedroom_walkway": {
       "value": 600,
       "confidence": "nominal",
-      "source": "Bedroom: clear walkway between the wall and the end of the bed, mm.",
+      "source": "Bedroom: target walkway between the wall and the end of the bed, mm. Used only for the check (bedroom.walkway_short_mm); the wall position comes from the arches.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
     "bedroom_wall_x": {
       "value": null,
       "confidence": "derived",
-      "source": "Bedroom: x of the bedroom face of the dividing wall, mm. null = bed front x - bedroom_walkway (bed over boot: inner rear wall - (bed length + walkway)).",
+      "source": "Bedroom: x of the bedroom (rear) face of the dividing wall, mm. null = forward face of the rear arch housings (rear axle - rear_arch_length/2, same formula as the housing geometry), so the housings sit inside the bedroom.",
       "urls": [],
-      "notes": "Consider aligning to a window pillar."
+      "notes": "Override with a number to move the wall. The walkway is whatever is left between the wall and the bed (checked against bedroom_walkway)."
     },
     "bedroom_wall_thickness": {
       "value": 50,
@@ -592,10 +592,10 @@
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
-    "bedroom_door_width": {
-      "value": 700,
+    "bedroom_door_opening_width": {
+      "value": 850,
       "confidence": "nominal",
-      "source": "Bedroom: sliding door clear opening width, mm.",
+      "source": "Bedroom: clear opening of the centred bi-parting doors, mm. Must be <= interior_width/2 - side clearance - leaf overlap (= 860 with the defaults); 900 would push each open leaf 30 mm into the side wall (outer edge at |y| 930).",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
@@ -609,14 +609,28 @@
     "bedroom_door_thickness": {
       "value": 35,
       "confidence": "nominal",
-      "source": "Bedroom: sliding door leaf thickness, mm.",
+      "source": "Bedroom: thickness of each sliding leaf, mm.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
-    "bedroom_door_y_center": {
-      "value": null,
-      "confidence": "derived",
-      "source": "Bedroom: door opening centre y, mm. null = against the side wall opposite the slide direction, so the leaf has room to slide.",
+    "bedroom_door_leaf_overlap": {
+      "value": 30,
+      "confidence": "nominal",
+      "source": "Bedroom: each leaf overlaps the wall past its jamb by this much when closed, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_door_centre_gap": {
+      "value": 2,
+      "confidence": "nominal",
+      "source": "Bedroom: gap between the two leaves where they meet on the centreline, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "bedroom_door_side_clearance": {
+      "value": 10,
+      "confidence": "nominal",
+      "source": "Bedroom: minimum clearance from an open leaf to the side wall, mm (check only).",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     }
@@ -802,7 +816,7 @@
       "value": 0,
       "unit": "fraction",
       "confidence": "nominal",
-      "source": "Build-time bedroom sliding door position, 0 = closed, 1 = open."
+      "source": "Build-time position of both bedroom doors (bi-parting pair), 0 = closed, 1 = open. Lives on Bedroom Door Left."
     }
   },
   "layout_options": {
@@ -834,14 +848,6 @@
     "bed_over_boot": {
       "value": true,
       "source": "true = bed platform over the internal boot (boot forms the rear of the base, saves ~1000 mm of cabin). false = bed forward of the boot."
-    },
-    "bedroom_door_slide": {
-      "value": "offside",
-      "options": [
-        "kerb",
-        "offside"
-      ],
-      "source": "Direction the bedroom sliding door opens: toward the kerb (-Y) or offside (+Y)."
     }
   }
 }

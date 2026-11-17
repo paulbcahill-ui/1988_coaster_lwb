@@ -32,10 +32,12 @@ Body (rebuilt 2026-11-17):
     cabin floor, runs derived from bumpers/arch cuts/step well (overridable),
     through-bins where the kerb and offside runs overlap; flaps (OpenAngle,
     top-hinged by default) and Lock Markers that follow their flaps.
-  * Bedroom group: dividing wall at bedroom_wall_x, sliding Bedroom Door
-    (OpenFraction, SlideTravel), Bed Platform (over the boot by default) and
-    the Bedroom Floor. The Living Floor (FLR_EMPTY_USABLE, still reported as
-    usable_floor_*) runs from the cab zone to the wall.
+  * Bedroom group: dividing wall whose rear face (bedroom_wall_x) is flush
+    with the rear arch housings' forward face, centred bi-parting doors
+    Bedroom Door Left/Right (OpenFraction and SlideTravel on the left leaf),
+    Bed Platform (over the boot by default) and the Bedroom Floor. The Living
+    Floor (FLR_EMPTY_USABLE, still reported as usable_floor_*) runs from the
+    cab zone to the wall.
   * Glass panes are separate thin solids recessed inside their openings, so
     nothing pokes through the roof or the cutaway plane.
   * The cutaway view uses true planar booleans at cutaway_z (stored in the
@@ -334,6 +336,12 @@ def usable_floor_parts(V, x0=None, x1=None):
     return outline, area, length, width, subtracted
 
 
+def arch_housing_x0(axle, length):
+    """Forward (low-X) face of an interior arch housing; add_arch_housings and the bedroom wall
+    both use this, so the wall's rear face is exactly flush with the rear housings."""
+    return axle - length / 2.0
+
+
 def arch_cut_radius(V):
     """Radius of the wheel-arch cut in the body (tyre radius + 90 mm), as in arch_cutters."""
     return Vv(V, "tyre_od") / 2.0 + 90.0
@@ -447,12 +455,14 @@ def bedroom_layout(V):
     over_boot = bool(flag(V, "bed_over_boot", True))
     bed_x1 = B["x_inner"] if over_boot else B["x_front"]
     bed_x0 = bed_x1 - plat_len
-    walkway = Vv(V, "bedroom_walkway")
-    wall_x = opt(V, "bedroom_wall_x", bed_x0 - walkway)
-    wall_t = Vv(V, "bedroom_wall_thickness")
+    walkway_target = Vv(V, "bedroom_walkway")
     rear_axle = Vv(V, "front_overhang") + Vv(V, "wheelbase")
-    ra0 = rear_axle - Vv(V, "rear_arch_length") / 2.0
-    ra1 = rear_axle + Vv(V, "rear_arch_length") / 2.0
+    ra0 = arch_housing_x0(rear_axle, Vv(V, "rear_arch_length"))
+    ra1 = ra0 + Vv(V, "rear_arch_length")
+    # Wall's rear (bedroom) face flush with the forward face of the rear arch housings.
+    wall_x = opt(V, "bedroom_wall_x", ra0)
+    wall_t = Vv(V, "bedroom_wall_thickness")
+    walkway = bed_x0 - wall_x
     arch_top = floor + Vv(V, "rear_arch_height")
     arch_under_bed = ra1 > bed_x0 and ra0 < bed_x1
     if over_boot:
@@ -460,14 +470,17 @@ def bedroom_layout(V):
     else:
         default_top = max(floor + 450.0, arch_top if arch_under_bed else 0.0)
     p_top = floor + opt(V, "bed_platform_height", default_top - floor)
-    door_w = Vv(V, "bedroom_door_width")
+    # Centred bi-parting pair: each leaf covers half the opening plus the jamb overlap, meets the
+    # other at y=0 (centre gap), and slides half the opening toward its own side wall.
+    door_w = Vv(V, "bedroom_door_opening_width")
     door_h = min(Vv(V, "bedroom_door_height"), ceiling - floor - 100.0)
-    slide = str(flag(V, "bedroom_door_slide", "offside")).lower()
-    s_slide = s_left if slide == "kerb" else s_right
-    travel = door_w + 40.0
-    leaf_w = door_w + 60.0
-    y_c = opt(V, "bedroom_door_y_center", -s_slide * (iw / 2.0 - 60.0 - door_w / 2.0))
-    leaf_far = s_slide * y_c + leaf_w / 2.0 + travel      # leaf edge when open, measured toward s_slide
+    overlap = Vv(V, "bedroom_door_leaf_overlap")
+    gap = Vv(V, "bedroom_door_centre_gap")
+    side_clr = Vv(V, "bedroom_door_side_clearance")
+    leaf_w = door_w / 2.0 + overlap - gap / 2.0
+    travel = door_w / 2.0
+    inner_open = gap / 2.0 + travel                 # |y| of the leaf's inner edge when open
+    outer_open = gap / 2.0 + leaf_w + travel        # |y| of the leaf's outer edge when open
     return {
         "orientation": "crosswise" if orient == "crosswise" else "lengthwise",
         "mattress_along_x": along, "mattress_across_y": across,
@@ -481,13 +494,20 @@ def bedroom_layout(V):
         "ceiling_z": ceiling,
         "headroom_over_platform": ceiling - p_top,
         "headroom_over_mattress": ceiling - p_top - Vv(V, "bed_mattress_thickness"),
-        "walkway": bed_x0 - wall_x,
+        "walkway": walkway, "walkway_target": walkway_target,
+        "walkway_short_mm": round(max(0.0, walkway_target - walkway), 1),
+        "bed_fits": walkway >= 0.0,
+        "rear_arch_x0": ra0, "rear_arch_x1": ra1,
         "wall_x": wall_x, "wall_x0": wall_x - wall_t, "wall_t": wall_t,
         "bedroom_length": B["x_inner"] - wall_x,
         "door_w": door_w, "door_h": door_h, "door_t": Vv(V, "bedroom_door_thickness"),
-        "door_y_center": y_c, "door_slide": "kerb" if slide == "kerb" else "offside",
-        "door_slide_sign": s_slide, "door_travel": travel, "door_leaf_w": leaf_w,
-        "door_slide_clear": leaf_far <= iw / 2.0 + 1e-6,
+        "door_y_center": 0.0, "door_leaf_w": leaf_w, "door_travel": travel,
+        "door_overlap": overlap, "door_centre_gap": gap,
+        "door_inner_open": inner_open, "door_outer_open": outer_open,
+        "door_clears_opening": inner_open >= door_w / 2.0 - 1e-6,
+        "door_clears_side_walls": outer_open <= iw / 2.0 - side_clr + 1e-6,
+        "door_max_opening": iw / 2.0 - side_clr - overlap,
+        "door_sides": {"L": s_left, "R": s_right},
         "x_inner": B["x_inner"], "boot_front": B["x_front"],
     }
 
@@ -1060,7 +1080,7 @@ def add_storage(V, colors, groups):
 
 
 def add_bedroom(V, colors, groups, cavity):
-    """Dividing wall (fitted to the cabin section), sliding door, bed platform, bedroom floor."""
+    """Dividing wall (fitted to the cabin section), bi-parting doors, bed platform, bedroom floor."""
     Bd = bedroom_layout(V)
     iw = Vv(V, "interior_width")
     floor = Vv(V, "floor_height")
@@ -1074,12 +1094,16 @@ def add_bedroom(V, colors, groups, cavity):
     wall = try_cut(wall, box(Bd["wall_t"] + 20.0, dw, dh + 10.0, Bd["wall_x0"] - 10.0, yc - dw / 2.0, floor - 10.0),
                    "bedroom_door_opening")
     add_shape("BED_WALL", as_single_solid(wall, "bedroom_wall"), grp, (0.86, 0.83, 0.76))
-    # Sliding leaf on the living side of the wall, overlapping the opening 30 mm each side.
+    # Bi-parting leaves on the living side of the wall, meeting on the centreline.
     lw, lt = Bd["door_leaf_w"], Bd["door_t"]
     lh = min(dh + 25.0, ceil_z - floor - 20.0)
-    leaf = box(lt, lw, lh, Bd["wall_x0"] - 5.0 - lt, yc - lw / 2.0, floor + 5.0)
-    door = add_shape("BED_DOOR", leaf, grp, colors.get("dash_color", (0.3, 0.3, 0.3)))
-    make_bedroom_door_operable(V, door, Bd["door_slide_sign"], Bd["door_travel"])
+    leaves = {}
+    for tag in ("L", "R"):
+        s = Bd["door_sides"][tag]
+        y0, y1 = span(s, Bd["door_centre_gap"] / 2.0, Bd["door_centre_gap"] / 2.0 + lw)
+        leaf = box(lt, y1 - y0, lh, Bd["wall_x0"] - 5.0 - lt, y0, floor + 5.0)
+        leaves[tag] = add_shape(f"BED_DOOR_{tag}", leaf, grp, colors.get("dash_color", (0.3, 0.3, 0.3)))
+    make_bedroom_doors_operable(V, leaves["L"], leaves["R"], Bd["door_sides"], Bd["door_travel"])
     # Bed platform: solid base forward of the boot; over the boot only a deck up to platform height.
     pw, ptop = Bd["platform_width"], Bd["platform_top_z"]
     bx0, bx1 = Bd["bed_x0"], Bd["bed_x1"]
@@ -1222,16 +1246,19 @@ def make_flap_operable(V, flap, lock, s, hinge_y, hinge_z, top):
     follow_placement(lock, flap)
 
 
-def make_bedroom_door_operable(V, door, s, travel):
-    """Sliding leaf: moves along Y toward sign s by OpenFraction * SlideTravel."""
-    n = door.Name
-    add_control(door, "OpenFraction", dc(V, "bedroom_door_open_fraction", 0.0), 0.0, 1.0, 0.05,
-                "Bedroom door: 0 = closed, 1 = fully open (slides along the wall).")
-    add_control(door, "SlideTravel", travel, 0.0, 2000.0, 10.0,
-                "Slide distance when fully open, mm (default door width + 40).")
+def make_bedroom_doors_operable(V, left, right, signs, travel):
+    """Bi-parting pair. The controls live on the LEFT leaf (Bedroom Door Left); both leaves'
+    Placements read them, mirrored, each sliding toward its own side wall. The right leaf only
+    reads the left leaf, so there is no cycle."""
+    n = left.Name
+    add_control(left, "OpenFraction", dc(V, "bedroom_door_open_fraction", 0.0), 0.0, 1.0, 0.05,
+                "Bedroom doors (both leaves): 0 = closed, 1 = fully open (each slides to its own side).")
+    add_control(left, "SlideTravel", travel, 0.0, 1000.0, 10.0,
+                "Slide distance of each leaf when fully open, mm (default half the opening width).")
     f = f"max(0; min(1; {n}.OpenFraction))"
-    set_expr(door, "Placement",
-             f"placement(vector(0; {s:.0f} * {f} * {n}.SlideTravel; 0); vector(0; 0; 1); 0)")
+    for leaf, tag in ((left, "L"), (right, "R")):
+        set_expr(leaf, "Placement",
+                 f"placement(vector(0; {signs[tag]:.0f} * {f} * {n}.SlideTravel; 0); vector(0; 0; 1); 0)")
 
 
 def add_wheels(V, colors, groups):
@@ -1338,7 +1365,7 @@ def add_arch_housings(V, colors, groups):
     s_left, s_right = sides(V)
 
     def housing(name, axle, length, width, height, s):
-        x = axle - length / 2.0
+        x = arch_housing_x0(axle, length)
         y = (iw / 2.0 - width) if s > 0 else -iw / 2.0
         return add_shape(name, box(length, width, height, x, y, floor), groups["GRP_ARCHES"], colors["arch_color"])
 
@@ -1522,7 +1549,8 @@ FIXED_LABELS = {
     "FLR_BEDROOM": "Bedroom Floor",
     "STEP_ENTRY": "Entry Step",
     "BED_WALL": "Bedroom Wall",
-    "BED_DOOR": "Bedroom Door",
+    "BED_DOOR_L": "Bedroom Door Left",
+    "BED_DOOR_R": "Bedroom Door Right",
     "BED_PLATFORM": "Bed Platform",
     "REF_FLOOR_OUTLINE": "Floor Outline",
     "REF_CENTRELINE": "Centreline",
@@ -1892,7 +1920,7 @@ def run():
     door_state = {}
     for nm, props in (("DR_ENTRY", ("OpenFraction", "SwingPhase", "SwingOut", "SlideTravel")),
                       ("DR_DRIVER", ("OpenAngle",)), ("DR_BOOT_LID", ("OpenAngle",)),
-                      ("BED_DOOR", ("OpenFraction", "SlideTravel"))) + tuple(
+                      ("BED_DOOR_L", ("OpenFraction", "SlideTravel"))) + tuple(
                           (o.Name, ("OpenAngle",)) for o in doc.Objects if o.Name.startswith("STO_FLAP_")):
         o = doc.getObject(nm)
         if o is not None:
