@@ -1,7 +1,7 @@
 """Build a 1988 Toyota Coaster LWB (2nd gen B20/B30) hollow body and empty-cabin layout.
 
 Owns BODY_*, FLR_*, DR_*, GLZ_*, WHL_*, CAB_*, ARCH_*, REF_*, GRP_*, LIT_*, TRM_*,
-STEP_*, STO_*, BED_*.
+STEP_*, STO_*, BED_*, WRD_*.
 Idempotent: opens a fresh document, rebuilds from params/coaster_params.json.
 
 Units are millimetres. Do not hard-code measured vehicle dimensions here;
@@ -40,6 +40,13 @@ Body (rebuilt 2026-11-17):
     Bed Platform (over the boot by default) and the Bedroom Floor. The Living
     Floor (FLR_EMPTY_USABLE, still reported as usable_floor_*) runs from the
     cab zone to the wall.
+  * Bedroom fit-out (2026-11-17): Bed sub-group (Mattress with rounded edges
+    and a slight crown, Pillows at the rear/head end), Reading Lamps sub-group
+    (wall plate + arm + shade on the solid side-wall strip aft of the last side
+    window), Wardrobes sub-group (one each side of the doorway against the aft
+    face of the wall: carcass, fixed Top Panel, Base Panel over the rear arch
+    housing, double swing doors with handles and an OpenAngle each). With
+    wardrobe_wall_fit the wall moves forward so a 90+ degree swing clears the bed.
   * Glass panes are separate thin solids recessed inside their openings, so
     nothing pokes through the roof or the cutaway plane.
   * The cutaway view uses true planar booleans at cutaway_z (stored in the
@@ -468,6 +475,106 @@ def storage_layout(V):
     }
 
 
+def leaf_sweep(w, t, u, standoff, edge_off, hi, step=0.5):
+    """Wardrobe door swing, relative to its hinge (the front, aft-facing corner on the hinge edge).
+    Closed, the leaf occupies x in [-t, 0] and y from 0 to u*w (u = +-1, global y direction from
+    the hinge to the meeting edge); the handle tip stands `standoff` proud of the front face,
+    `edge_off` in from the meeting edge. Opening rearwards (+X) is a turn of -u*theta about +Z,
+    the same sign the Placement expression uses. Returns [(theta, [(x, y), ...]), ...]."""
+    pts0 = [(-t, 0.0), (0.0, 0.0), (-t, u * w), (0.0, u * w), (standoff, u * (w - edge_off))]
+    out = []
+    n = max(1, int(math.ceil(hi / step)))
+    for i in range(n + 1):
+        th = min(hi, i * step)
+        ph = math.radians(-u * th)
+        c, sn = math.cos(ph), math.sin(ph)
+        out.append((th, [(x * c - y * sn, x * sn + y * c) for x, y in pts0]))
+    return out
+
+
+def wardrobe_y_layout(V, iw, door_w):
+    """Across-the-bus layout of one Wardrobe (same both sides, as |y|) and its door swing reach.
+    Pure Python; bedroom_layout uses the reach to place the wall when wardrobe_wall_fit is on."""
+    yi = door_w / 2.0 + Vv(V, "wardrobe_doorway_clearance")     # inner side / inner door hinge
+    yo = iw / 2.0 - Vv(V, "wardrobe_wall_filler")                # outer door hinge
+    gap = Vv(V, "wardrobe_door_gap")
+    t = Vv(V, "wardrobe_door_thickness")
+    w = (yo - yi - gap) / 2.0
+    hi = dc(V, "wardrobe_door_max_angle", 100.0)
+    so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
+    reach = max(x for _, pts in leaf_sweep(w, t, 1, so, eo, hi) for x, _ in pts)
+    return {"yi": yi, "yo": yo, "y_wall": iw / 2.0, "width": iw / 2.0 - yi, "leaf_w": w, "t": t,
+            "gap": gap, "reach": reach, "max_angle_param": hi, "valid": w > 50.0}
+
+
+def wardrobe_layout(V, Bd):
+    """Full Wardrobe layout (x, z, depth, per-door swing limits and clearances). Pure Python.
+    Symmetric: worked on the +Y side as |y|, valid for both."""
+    iw = Vv(V, "interior_width")
+    floor = Vv(V, "floor_height")
+    Y = Bd["wardrobe_y"]
+    t, w = Y["t"], Y["leaf_w"]
+    bed_clr = Vv(V, "wardrobe_bed_clearance")
+    room = Bd["bed_x0"] - Bd["wall_x"] - t - Y["reach"] - bed_clr
+    depth_req = Vv(V, "wardrobe_depth")
+    depth = max(2.0 * Vv(V, "wardrobe_panel_thickness") + 50.0, min(depth_req, room))
+    x0 = Bd["wall_x"]
+    x1 = x0 + depth
+    xf = x1 + t                                      # door front face = hinge line
+    z_top = Bd["ceiling_z"] - Vv(V, "wardrobe_ceiling_gap")
+    zt = z_top - Vv(V, "wardrobe_top_panel_height")
+    arch_band = iw / 2.0 - Vv(V, "rear_arch_width")
+    arch_in_swing = (Bd["rear_arch_x1"] > x1 and Bd["rear_arch_x0"] < xf + Y["reach"]
+                     and Y["yo"] > arch_band)
+    zb_default = (Bd["rear_arch_top_z"] + Vv(V, "wardrobe_arch_clearance")) if arch_in_swing \
+        else floor + Vv(V, "wardrobe_plinth_height")
+    zb = opt(V, "wardrobe_door_bottom_z", zb_default)
+    hl = Vv(V, "wardrobe_handle_length")
+    hz = min(max(floor + Vv(V, "wardrobe_handle_height_above_floor"), zb + hl / 2.0 + 20.0), zt - hl / 2.0 - 20.0)
+    door_half = Bd["door_w"] / 2.0
+    so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
+    margin = Vv(V, "wardrobe_swing_margin")
+    swing = {}
+    limits = {}
+    for kind, hinge, u in (("O", Y["yo"], -1), ("I", Y["yi"], 1)):
+        limit, at90, atmax = 0.0, None, None
+        ok = True
+        for th, pts in leaf_sweep(w, t, u, so, eo, Y["max_angle_param"]):
+            xs = [xf + x for x, _ in pts]
+            ys = [hinge + y for _, y in pts]
+            c = {"bed": round(Bd["bed_x0"] - max(xs), 1), "side_wall": round(iw / 2.0 - max(ys), 1),
+                 "doorway": round(min(ys) - door_half, 1)}
+            if ok and min(c.values()) >= margin:
+                limit, atmax = th, dict(c, angle=th)
+            else:
+                ok = False
+            if abs(th - 90.0) < 1e-6:
+                at90 = dict(c, angle=90.0)
+        limits[kind] = limit
+        swing["outer" if kind == "O" else "inner"] = {"hinge_abs_y": hinge, "limit_deg": limit,
+                                                      "at_90": at90, "at_limit": atmax,
+                                                      "reaches_90": limit >= 90.0}
+    covers = []
+    for i, (a, b) in enumerate(side_window_ranges(None, V)):
+        ov = min(b, xf) - max(a, x0)
+        if ov > 0.0:
+            covers.append({"side_window": i + 1, "x0": round(max(a, x0), 1), "x1": round(min(b, xf), 1),
+                           "overlap_mm": round(ov, 1)})
+    return {
+        "x0": x0, "x1": x1, "front_x": xf, "depth": depth, "depth_requested": depth_req,
+        "depth_clamped": depth < depth_req - 0.5, "room_for_depth": round(room, 1),
+        "yi": Y["yi"], "yo": Y["yo"], "y_wall": iw / 2.0, "width": Y["width"], "leaf_w": w, "door_t": t,
+        "inner_width_less_panels": Y["width"] - 2.0 * Vv(V, "wardrobe_panel_thickness"),
+        "z0": floor, "z_top": z_top, "height": z_top - floor, "door_z0": zb, "door_z1": zt,
+        "door_height": zt - zb, "top_panel_height": z_top - zt, "handle_z": hz,
+        "arch_in_swing": arch_in_swing, "doors_clear_arch_top_mm": round(zb - Bd["rear_arch_top_z"], 1),
+        "reach": round(Y["reach"], 1), "swing": swing, "limits_deg": limits,
+        "aisle_front_to_bed": round(Bd["bed_x0"] - xf, 1),
+        "covers_side_windows": covers,
+        "doorway_clearance": round(Y["yi"] - door_half, 1),
+    }
+
+
 def bedroom_layout(V):
     """Bedroom at the rear: dividing wall, sliding door, bed platform. Pure Python."""
     iw = Vv(V, "interior_width")
@@ -488,8 +595,16 @@ def bedroom_layout(V):
     rear_axle = Vv(V, "front_overhang") + Vv(V, "wheelbase")
     ra0 = arch_housing_x0(rear_axle, Vv(V, "rear_arch_length"))
     ra1 = ra0 + Vv(V, "rear_arch_length")
-    # Wall's rear (bedroom) face flush with the forward face of the rear arch housings.
-    wall_x = opt(V, "bedroom_wall_x", ra0)
+    door_w = Vv(V, "bedroom_door_opening_width")
+    WY = wardrobe_y_layout(V, iw, door_w) if bool(flag(V, "wardrobes_enabled", True)) else None
+    # Wall's rear (bedroom) face flush with the forward face of the rear arch housings, or further
+    # forward when the Wardrobes need their depth plus a full door swing clear of the bed.
+    wall_default, wardrobe_need = ra0, None
+    if WY is not None:
+        wardrobe_need = Vv(V, "wardrobe_depth") + WY["t"] + WY["reach"] + Vv(V, "wardrobe_bed_clearance")
+        if bool(flag(V, "wardrobe_wall_fit", True)):
+            wall_default = min(ra0, math.floor(bed_x0 - wardrobe_need))
+    wall_x = opt(V, "bedroom_wall_x", wall_default)
     wall_t = Vv(V, "bedroom_wall_thickness")
     walkway = bed_x0 - wall_x
     arch_top = floor + Vv(V, "rear_arch_height")
@@ -501,7 +616,6 @@ def bedroom_layout(V):
     p_top = floor + opt(V, "bed_platform_height", default_top - floor)
     # Centred bi-parting pair: each leaf covers half the opening plus the jamb overlap, meets the
     # other at y=0 (centre gap), and slides half the opening toward its own side wall.
-    door_w = Vv(V, "bedroom_door_opening_width")
     door_h = min(Vv(V, "bedroom_door_height"), ceiling - floor - 100.0)
     overlap = Vv(V, "bedroom_door_leaf_overlap")
     gap = Vv(V, "bedroom_door_centre_gap")
@@ -528,6 +642,8 @@ def bedroom_layout(V):
         "bed_fits": walkway >= 0.0,
         "rear_arch_x0": ra0, "rear_arch_x1": ra1,
         "wall_x": wall_x, "wall_x0": wall_x - wall_t, "wall_t": wall_t,
+        "wall_x_at_arches": ra0, "wall_moved_forward_mm": round(ra0 - wall_x, 1),
+        "wardrobe_y": WY, "wardrobe_need_mm": wardrobe_need,
         "bedroom_length": B["x_inner"] - wall_x,
         "door_w": door_w, "door_h": door_h, "door_t": Vv(V, "bedroom_door_thickness"),
         "door_y_center": 0.0, "door_leaf_w": leaf_w, "door_travel": travel,
@@ -1281,8 +1397,25 @@ def add_bedroom(V, colors, groups, cavity):
                  f"overrun vs interior width {Bd['mattress_overrun_mm']:+.0f} mm", "Mattress fit")
         add_prop(plat, "App::PropertyFloat", "PlatformTopZ_mm", "Coaster", float(ptop),
                  "Platform top above ground, mm (nominal, verify)")
-    # Bedroom floor: the walkway between the wall and the bed, minus arch keep-outs.
+    Bd["fitout"] = add_bed_fitout(V, colors, groups, Bd)
+    Wd = add_wardrobes(V, colors, groups, Bd, cavity) if Bd.get("wardrobe_y") else None
+    Bd["wardrobes"] = Wd
+    # Bedroom floor: the walkway between the wall and the bed, minus arch and wardrobe keep-outs.
     outline, area, blen, bw, cut = usable_floor_parts(V, Bd["wall_x"], bx0)
+    if Wd:
+        for tag, s in zip(("L", "R"), sides(V)):
+            wy0, wy1 = span(s, Wd["yi"], iw / 2.0)
+            wx0, wx1 = max(Bd["wall_x"], Wd["x0"]), min(bx0, Wd["front_x"])
+            if wx1 <= wx0:
+                continue
+            a = (wx1 - wx0) * (wy1 - wy0)
+            for c in cut:      # don't count floor already lost under an arch housing twice
+                ox = min(wx1, c["x1"]) - max(wx0, c["x0"])
+                oy = min(wy1, c["y1"]) - max(wy0, c["y0"])
+                if ox > 0 and oy > 0:
+                    a -= ox * oy
+            cut.append({"name": f"WARDROBE_{tag}", "area_mm2": a, "x0": wx0, "x1": wx1, "y0": wy0, "y1": wy1})
+            area -= a
     if blen > 1.0:
         try:
             shp = face_with_cutouts(outline, cut, floor + 1.0).extrude(vec(0, 0, 6.0))
@@ -1292,6 +1425,181 @@ def add_bedroom(V, colors, groups, cavity):
         add_prop(fobj, "App::PropertyFloat", "FloorArea_m2", "Coaster", float(area / 1e6),
                  "Clear bedroom floor (walkway) area, square metres")
     return Bd, area, blen, cut
+
+
+def filleted_box(dx, dy, dz, x, y, z, r, label):
+    shp = box(dx, dy, dz, x, y, z)
+    if r < 1.0:
+        return shp
+    try:
+        out = shp.makeFillet(float(r), shp.Edges)
+        if out.isNull() or not out.isValid():
+            raise RuntimeError("fillet result invalid")
+        return out
+    except Exception as exc:
+        print(f"  fillet failed ({label}): {exc}; square edges")
+        FAILED_OPS.append(f"fillet_{label}")
+        return shp
+
+
+def add_bed_fitout(V, colors, groups, Bd):
+    """Mattress (rounded edges, slight crown), Pillows at the head (rear) end, two Reading Lamps."""
+    iw = Vv(V, "interior_width")
+    s_left, s_right = sides(V)
+    ptop, bx1 = Bd["platform_top_z"], Bd["bed_x1"]
+    gbed, glamp = groups["GRP_BED"], groups["GRP_READING_LAMPS"]
+    c = Vv(V, "mattress_clearance")
+    mw = min(opt(V, "mattress_width", Bd["platform_width"]), iw) - 2.0 * c
+    ml = opt(V, "mattress_length", Bd["platform_length"]) - 2.0 * c
+    mx1 = bx1 - c
+    mx0 = mx1 - ml
+    th = Vv(V, "bed_mattress_thickness")
+    crown = max(0.0, min(Vv(V, "mattress_crown"), th / 3.0))
+    hb = th - crown                                   # thickness at the edges
+    r = max(0.0, min(Vv(V, "mattress_edge_radius"), hb / 2.0 - 1.0, mw / 2.0 - 1.0))
+    mat = filleted_box(ml, mw, hb, mx0, -mw / 2.0, ptop, r, "mattress")
+    if crown > 0.5:
+        # Crown: the top of a flattened ellipsoid (semi-axis C = 4 x crown, centre 3 x crown below
+        # the flat top) whose footprint sits just inside the flat top, so it rises gently.
+        try:
+            k = math.sqrt(1.0 - 0.75 ** 2)
+            A = (ml / 2.0 - r - 10.0) / k
+            B = (mw / 2.0 - r - 10.0) / k
+            C = 4.0 * crown
+            ell = Part.makeSphere(100.0)
+            m = App.Matrix()
+            m.scale(A / 100.0, B / 100.0, C / 100.0)
+            ell = ell.transformGeometry(m)
+            ell.translate(vec((mx0 + mx1) / 2.0, 0.0, ptop + hb - 3.0 * crown))
+            cap = ell.common(box(ml, mw, crown + 5.0, mx0, -mw / 2.0, ptop + hb))
+            if cap.isNull() or cap.Volume < 1.0:
+                raise RuntimeError("empty crown")
+            mat = as_single_solid(try_fuse(mat, cap, "mattress_crown"), "mattress")
+        except Exception as exc:
+            print(f"  mattress crown failed: {exc}; flat top")
+            FAILED_OPS.append("mattress_crown")
+    mobj = add_shape("BED_MATTRESS", mat, gbed, colors.get("mattress_color", (0.55, 0.62, 0.72)))
+    add_prop(mobj, "App::PropertyString", "Size", "Coaster",
+             f"{mw:.0f} wide x {ml:.0f} long x {th:.0f} thick (crown {crown:.0f}); nominal, verify", "Mattress size")
+    # Pillows across the head end, evenly spaced.
+    n = max(0, int(flag(V, "pillow_count", 2)))
+    pillows = []
+    if n:
+        pw_ = min(Vv(V, "pillow_width"), (mw - (n + 1) * 20.0) / n)
+        gap = (mw - n * pw_) / (n + 1)
+        pd, ph = Vv(V, "pillow_depth"), Vv(V, "pillow_height")
+        pr = max(0.0, min(Vv(V, "pillow_edge_radius"), ph / 2.0 - 1.0, pd / 2.0 - 1.0, pw_ / 2.0 - 1.0))
+        px1 = mx1 - Vv(V, "pillow_head_gap")
+        for i in range(n):
+            y0 = -mw / 2.0 + gap + i * (pw_ + gap)
+            yc = y0 + pw_ / 2.0
+            if n == 2:
+                tag = "L" if yc * s_left > 0 else "R"
+            else:
+                tag = str(i + 1)
+            add_shape(f"BED_PILLOW_{tag}", filleted_box(pd, pw_, ph, px1 - pd, y0, ptop + hb, pr, f"pillow_{tag}"),
+                      gbed, colors.get("pillow_color", (0.95, 0.94, 0.90)))
+            pillows.append({"tag": tag, "x0": px1 - pd, "x1": px1, "y0": y0, "y1": y0 + pw_, "z0": ptop + hb,
+                            "z1": ptop + hb + ph})
+    # Reading lamps on the solid side-wall strip aft of the last side window (no glass there).
+    rngs = side_window_ranges(None, V)
+    last_end = max(b for _, b in rngs)
+    x_in = Bd["x_inner"]
+    lx = opt(V, "reading_lamp_x", (last_end + x_in) / 2.0)
+    zm = opt(V, "reading_lamp_mount_z", ptop + th + Vv(V, "reading_lamp_height_above_mattress"))
+    pd_, pt = Vv(V, "reading_lamp_plate_diameter"), Vv(V, "reading_lamp_plate_thickness")
+    ad, drop = Vv(V, "reading_lamp_arm_diameter"), Vv(V, "reading_lamp_drop")
+    reach = Vv(V, "reading_lamp_reach")
+    sh = Vv(V, "reading_lamp_shade_height")
+    sbot, stop = Vv(V, "reading_lamp_shade_bottom_diameter"), Vv(V, "reading_lamp_shade_top_diameter")
+    plate_hits = [i + 1 for i, (a, b) in enumerate(rngs) if a < lx + pd_ / 2.0 and b > lx - pd_ / 2.0]
+    lamps = {}
+    for tag, s in (("L", s_left), ("R", s_right)):
+        yw = s * iw / 2.0
+        ys = s * (iw / 2.0 - reach)
+        try:
+            plate = cylinder(pd_ / 2.0, pt, lx, yw, zm, vec(0, -s, 0))
+            arm = cylinder(ad / 2.0, max(1.0, reach - pt), lx, s * (iw / 2.0 - pt), zm, vec(0, -s, 0))
+            stem = cylinder(ad / 2.0, drop + ad / 2.0, lx, ys, zm - drop, vec(0, 0, 1))
+            body = as_single_solid(try_fuse(try_fuse(plate, arm, f"lamp_arm_{tag}"), stem, f"lamp_stem_{tag}"),
+                                   f"lamp_{tag}")
+            add_shape(f"BED_LAMP_{tag}", body, glamp, colors.get("lamp_color", (0.18, 0.18, 0.2)))
+            shade = Part.makeCone(sbot / 2.0, stop / 2.0, sh, vec(lx, ys, zm - drop - sh), vec(0, 0, 1))
+            add_shape(f"BED_LAMP_SHADE_{tag}", shade, glamp, colors.get("lamp_shade_color", (0.93, 0.88, 0.74)))
+        except Exception as exc:
+            print(f"  reading lamp {tag} failed: {exc}")
+            FAILED_OPS.append(f"reading_lamp_{tag}")
+        lamps[tag] = {"plate_x": lx, "plate_y": yw, "arm_z": zm, "shade_centre_y": ys,
+                      "shade_z0": zm - drop - sh, "shade_z1": zm - drop}
+    return {
+        "mattress": {"x0": mx0, "x1": mx1, "width": mw, "length": ml, "thickness": th, "crown": crown,
+                     "edge_radius": r, "z0": ptop, "z_top_edges": ptop + hb, "z_top_centre": ptop + th,
+                     "headroom_at_centre": Bd["ceiling_z"] - ptop - th},
+        "pillows": pillows,
+        "lamps": lamps,
+        "lamp_strip_x": [last_end, x_in],
+        "lamp_plate_clear_of_side_windows": not plate_hits,
+        "lamp_shade_clear_of_rear_wall_mm": round(x_in - (lx + sbot / 2.0), 1),
+        "lamp_shade_above_mattress_mm": round(zm - drop - sh - (ptop + th), 1),
+    }
+
+
+def add_wardrobes(V, colors, groups, Bd, cavity):
+    """Two Wardrobes against the aft face of the bedroom wall, either side of the doorway, facing aft.
+    Carcass (floor to just under the ceiling, trimmed to the cabin void and around the rear arch
+    housing), fixed Top Panel, Base Panel below the doors, double swing doors with handles."""
+    W = wardrobe_layout(V, Bd)
+    iw = Vv(V, "interior_width")
+    floor = Vv(V, "floor_height")
+    grp = groups["GRP_WARDROBES"]
+    t, w, gap = W["door_t"], W["leaf_w"], Vv(V, "wardrobe_door_gap")
+    x0, x1, xf, z_top, zt, zb = W["x0"], W["x1"], W["front_x"], W["z_top"], W["door_z1"], W["door_z0"]
+    ra_l, ra_w, ra_h = Vv(V, "rear_arch_length"), Vv(V, "rear_arch_width"), Vv(V, "rear_arch_height")
+    hl, hd = Vv(V, "wardrobe_handle_length"), Vv(V, "wardrobe_handle_diameter")
+    so, eo = Vv(V, "wardrobe_handle_standoff"), Vv(V, "wardrobe_handle_edge_offset")
+    col_c = colors.get("wardrobe_color", (0.76, 0.67, 0.53))
+    col_d = colors.get("wardrobe_door_color", (0.84, 0.78, 0.67))
+    col_h = colors.get("handle_color", colors.get("rim_color", (0.75, 0.75, 0.78)))
+    for tag, s in zip(("L", "R"), sides(V)):
+        arch = box(ra_l, ra_w, ra_h, Bd["rear_arch_x0"], (iw / 2.0 - ra_w) if s > 0 else -iw / 2.0, floor)
+        y0, y1 = span(s, W["yi"], iw / 2.0)
+        carc = box(x1 - x0, y1 - y0, z_top - floor, x0, y0, floor)
+        fy0, fy1 = span(s, W["yo"], iw / 2.0)
+        carc = try_fuse(carc, box(t, fy1 - fy0, z_top - floor, x1, fy0, floor), f"wardrobe_filler_{tag}")
+        carc = try_common(carc, cavity, f"wardrobe_{tag}") or carc
+        if Bd["rear_arch_x0"] < xf:
+            carc = try_cut(carc, arch, f"wardrobe_arch_{tag}")
+        add_shape(f"WRD_CARCASS_{tag}", as_single_solid(carc, f"wardrobe_{tag}"), grp, col_c)
+        ly0, ly1 = span(s, W["yi"], W["yo"])
+        top = box(t, ly1 - ly0, z_top - zt - gap, x1, ly0, zt + gap)
+        top = try_common(top, cavity, f"wardrobe_top_{tag}") or top
+        add_shape(f"WRD_TOP_{tag}", top, grp, col_c)
+        if zb - gap - floor > 1.0:
+            base = box(t, ly1 - ly0, zb - gap - floor, x1, ly0, floor)
+            try:
+                cutb = base.cut(arch) if Bd["rear_arch_x0"] < xf else base
+                if cutb.isNull() or cutb.Volume < 1.0:
+                    cutb = None
+            except Exception as exc:
+                print(f"  wardrobe base {tag} cut failed: {exc}")
+                FAILED_OPS.append(f"wardrobe_base_{tag}")
+                cutb = None
+            if cutb is not None:
+                add_shape(f"WRD_BASE_{tag}", as_single_solid(cutb, f"wardrobe_base_{tag}"), grp, col_c)
+        for kind, hinge_abs, u_abs in (("O", W["yo"], -1), ("I", W["yi"], 1)):
+            u = s * u_abs                          # global y direction, hinge -> meeting edge
+            hy = s * hinge_abs
+            ya, yb = sorted((hy, hy + u * w))
+            door = add_shape(f"WRD_DOOR_{tag}{kind}", box(t, yb - ya, zt - zb, x1, ya, zb), grp, col_d)
+            hyc = hy + u * (w - eo)
+            hz = W["handle_z"]
+            handle = cylinder(hd / 2.0, hl, xf + so - hd / 2.0, hyc, hz - hl / 2.0, vec(0, 0, 1))
+            for dz in (-(hl / 2.0 - 15.0), hl / 2.0 - 15.0):
+                post = cylinder(hd * 0.4, so - hd / 2.0 + 1.0, xf, hyc, hz + dz, vec(1, 0, 0))
+                handle = try_fuse(handle, post, f"wardrobe_handle_{tag}{kind}")
+            hobj = add_shape(f"WRD_HANDLE_{tag}{kind}", as_single_solid(handle, f"handle_{tag}{kind}"), grp, col_h)
+            make_wardrobe_door_operable(V, door, hobj, -u, xf, hy, W["limits_deg"][kind])
+    return W
 
 
 # --------------------------------------------------------------------------
@@ -1420,6 +1728,22 @@ def make_bedroom_doors_operable(V, grp, leaves, signs, travel):
     for tag, leaf in leaves.items():
         set_expr(leaf, "Placement",
                  f"placement(vector(0; {signs[tag]:.0f} * {f} * href({g}.SlideTravel); 0); vector(0; 0; 1); 0)")
+
+
+def make_wardrobe_door_operable(V, door, handle, sgn, hinge_x, hinge_y, limit):
+    """Wardrobe door hinged on its front vertical edge at (hinge_x, hinge_y), opening rearwards
+    (toward the bed). The upper limit is the smaller of wardrobe_door_max_angle and the angle at
+    which the door or handle would touch the side wall, the doorway line or the bed (from
+    wardrobe_layout). The handle follows the door."""
+    n = door.Name
+    hi = max(0.0, math.floor(limit * 2.0) / 2.0)
+    add_control(door, "OpenAngle", dc(V, "wardrobe_door_open_angle", 0.0), 0.0, hi, 5.0,
+                f"Wardrobe door open angle, degrees (0 = closed, max {hi:g}). Hinged on its front edge, opens toward the bed.")
+    a = f"max(0; min({hi:g}; {n}.OpenAngle))"
+    expr = (f"placement(vector(0; 0; 0); rotation(vector(0; 0; 1); {sgn:.0f} * {a}); "
+            f"vector({hinge_x:.3f}; {hinge_y:.3f}; 0))")
+    set_expr(door, "Placement", expr)
+    follow_placement(handle, door)
 
 
 # --------------------------------------------------------------------------
@@ -1818,6 +2142,9 @@ GROUP_LABELS = {
     "GRP_STORAGE": "Storage",
     "GRP_BEDROOM": "Bedroom",
     "GRP_BEDROOM_DOORS": "Bedroom Doors",
+    "GRP_BED": "Bed",
+    "GRP_READING_LAMPS": "Reading Lamps",
+    "GRP_WARDROBES": "Wardrobes",
 }
 
 FIXED_LABELS = {
@@ -1860,6 +2187,7 @@ FIXED_LABELS = {
     "BED_DOOR_L": "Bedroom Door Left",
     "BED_DOOR_R": "Bedroom Door Right",
     "BED_PLATFORM": "Bed Platform",
+    "BED_MATTRESS": "Mattress",
     "REF_FLOOR_OUTLINE": "Floor Outline",
     "REF_CENTRELINE": "Centreline",
     "REF_CAB_ZONE": "Cab Zone",
@@ -1912,6 +2240,20 @@ def display_label(name):
         if name.startswith(pre):              # STO_FLAP_L1 -> Left Storage Flap 1
             rest = name[len(pre):]
             return f"{_SIDE.get(rest[:1], rest[:1])} {word} {rest[1:]}"
+    if name.startswith("BED_PILLOW_"):        # BED_PILLOW_L -> Left Pillow; BED_PILLOW_3 -> Pillow 3
+        t = name[11:]
+        return f"{_SIDE[t]} Pillow" if t in _SIDE else f"Pillow {t}"
+    if name.startswith("BED_LAMP_SHADE_"):    # BED_LAMP_SHADE_L -> Left Reading Lamp Shade
+        return f"{_SIDE.get(name[15:], name[15:])} Reading Lamp Shade"
+    if name.startswith("BED_LAMP_"):          # BED_LAMP_L -> Left Reading Lamp
+        return f"{_SIDE.get(name[9:], name[9:])} Reading Lamp"
+    if name.startswith("WRD_"):               # WRD_DOOR_LO -> Left Wardrobe Outer Door
+        part, t = name[4:].rsplit("_", 1)
+        side = _SIDE.get(t[:1], t[:1])
+        kind = {"O": " Outer", "I": " Inner"}.get(t[1:], "")
+        word = {"CARCASS": "", "TOP": " Top Panel", "BASE": " Base Panel", "DOOR": " Door",
+                "HANDLE": " Handle"}.get(part, " " + part.title())
+        return f"{side} Wardrobe{kind}{word}"
     if name.startswith("ARCH_"):              # ARCH_REAR_L -> Rear Left Arch Housing
         _, axle, side = name.split("_", 2)
         return f"{axle.title()} {_SIDE.get(side, side)} Arch Housing"
@@ -2103,11 +2445,15 @@ def run():
         "GRP_STORAGE": group("GRP_STORAGE"),
         "GRP_BEDROOM": group("GRP_BEDROOM"),
         "GRP_BEDROOM_DOORS": group("GRP_BEDROOM_DOORS"),
+        "GRP_BED": group("GRP_BED"),
+        "GRP_READING_LAMPS": group("GRP_READING_LAMPS"),
+        "GRP_WARDROBES": group("GRP_WARDROBES"),
     }
-    try:
-        groups["GRP_BEDROOM"].addObject(groups["GRP_BEDROOM_DOORS"])
-    except Exception as exc:
-        print(f"  Bedroom Doors not nested in Bedroom: {exc}")
+    for sub in ("GRP_BEDROOM_DOORS", "GRP_BED", "GRP_READING_LAMPS", "GRP_WARDROBES"):
+        try:
+            groups["GRP_BEDROOM"].addObject(groups[sub])
+        except Exception as exc:
+            print(f"  {sub} not nested in Bedroom: {exc}")
 
     computed = {
         "coordinate_system": P["coordinate_system"],
@@ -2204,6 +2550,8 @@ def run():
     computed["living_floor_x1_mm"] = Vv(V, "cab_zone_length") + use_len
     if flag(V, "bedroom_enabled", True):
         Bd, b_area, b_len, b_cut = add_bedroom(V, colors, groups, cavity)
+        computed["bed_fitout"] = Bd.pop("fitout", None)
+        computed["wardrobes"] = Bd.pop("wardrobes", None)
         computed["bedroom"] = dict(Bd)
         computed["bedroom_floor_area_m2"] = b_area / 1e6
         computed["bedroom_floor_length_mm"] = b_len
@@ -2270,6 +2618,13 @@ def run():
         "STO_FLAP": colors.get("body_lower_color", colors["body_color"]),
         "STO_LOCK": colors["light_rear_color"],
         "BED_WALL": (0.86, 0.83, 0.76),
+        "BED_MATTRESS": colors.get("mattress_color", (0.55, 0.62, 0.72)),
+        "BED_PILLOW": colors.get("pillow_color", (0.95, 0.94, 0.90)),
+        "BED_LAMP_SHADE": colors.get("lamp_shade_color", (0.93, 0.88, 0.74)),
+        "BED_LAMP": colors.get("lamp_color", (0.18, 0.18, 0.2)),
+        "WRD_HANDLE": colors.get("handle_color", colors["rim_color"]),
+        "WRD_DOOR": colors.get("wardrobe_door_color", (0.84, 0.78, 0.67)),
+        "WRD_": colors.get("wardrobe_color", (0.76, 0.67, 0.53)),
         "BED_DOOR": colors["dash_color"],
         "BED_PLATFORM": colors["seat_color"],
         "FLR_BEDROOM": colors["usable_floor_color"],
@@ -2287,7 +2642,7 @@ def run():
     for nm, props in (("DR_ENTRY", ("OpenFraction", "SwingPhase", "SwingOut", "SlideTravel")),
                       ("DR_DRIVER", ("OpenAngle",)), ("DR_BOOT_LID", ("OpenAngle",)),
                       ("GRP_BEDROOM_DOORS", ("OpenFraction", "SlideTravel"))) + tuple(
-                          (o.Name, ("OpenAngle",)) for o in doc.Objects if o.Name.startswith("STO_FLAP_")):
+                          (o.Name, ("OpenAngle",)) for o in doc.Objects if o.Name.startswith(("STO_FLAP_", "WRD_DOOR_"))):
         o = doc.getObject(nm)
         if o is not None:
             door_state[nm] = {p: float(getattr(o, p)) for p in props if hasattr(o, p)}
@@ -2354,6 +2709,15 @@ def run():
         b = computed["bedroom"]
         print(f"  bedroom: wall_x {b['wall_x']:.1f}, length {b['bedroom_length']:.0f}, clear floor "
               f"{computed['bedroom_floor_area_m2']:.2f} m^2, mattress overrun {b['mattress_overrun_mm']:+.0f} mm")
+        if b.get("wall_moved_forward_mm"):
+            print(f"  bedroom wall moved {b['wall_moved_forward_mm']:.1f} mm forward of the arch housings "
+                  f"(walkway {b['walkway']:.1f})")
+        wd = computed.get("wardrobes")
+        if wd:
+            print(f"  wardrobes: {wd['width']:.0f} W x {wd['depth']:.0f} D x {wd['height']:.0f} H, leaves "
+                  f"{wd['leaf_w']:.1f}, doors z {wd['door_z0']:.0f}-{wd['door_z1']:.0f}, swing limits "
+                  f"{wd['limits_deg']}, aisle to bed {wd['aisle_front_to_bed']:.0f}"
+                  f"{', DEPTH CLAMPED' if wd['depth_clamped'] else ''}")
     print(f"  storage runs {computed['storage']['runs']} hinge={computed['storage']['hinge']}")
     print("build ok")
     return doc

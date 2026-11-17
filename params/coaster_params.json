@@ -819,16 +819,16 @@
     "bedroom_walkway": {
       "value": 600,
       "confidence": "nominal",
-      "source": "Bedroom: target walkway between the wall and the end of the bed, mm. Used only for the check (bedroom.walkway_short_mm); the wall position comes from the arches.",
+      "source": "Bedroom: target walkway between the wall and the end of the bed, mm. Used only for the check (bedroom.walkway_short_mm); the wall position comes from the arches, or from the Wardrobes (wardrobe_wall_fit).",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
     "bedroom_wall_x": {
       "value": null,
       "confidence": "derived",
-      "source": "Bedroom: x of the bedroom (rear) face of the dividing wall, mm. null = forward face of the rear arch housings (rear axle - rear_arch_length/2, same formula as the housing geometry), so the housings sit inside the bedroom.",
+      "source": "Bedroom: x of the bedroom (rear) face of the dividing wall, mm. null = derived: the forward face of the rear arch housings (rear axle - rear_arch_length/2), or further forward if the Wardrobes need it (layout_options.wardrobe_wall_fit): bed_x0 - (wardrobe_depth + wardrobe_door_thickness + door swing reach + wardrobe_bed_clearance).",
       "urls": [],
-      "notes": "Override with a number to move the wall. The walkway is whatever is left between the wall and the bed (checked against bedroom_walkway)."
+      "notes": "Override with a number to move the wall; with a number the wardrobe depth is clamped to fit instead. The walkway is whatever is left between the wall and the bed (checked against bedroom_walkway)."
     },
     "bedroom_wall_thickness": {
       "value": 50,
@@ -878,6 +878,279 @@
       "source": "Bedroom: minimum clearance from an open leaf to the side wall, mm (check only).",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "mattress_width": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out: modelled Mattress width across the bus, mm. null = Bed Platform width (1800, clamped to the interior).",
+      "urls": [],
+      "notes": "Paul asked for the mattress sized to the platform: 1800 x 2030 nominal. Set a number to override."
+    },
+    "mattress_length": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out: modelled Mattress length along the bus, mm. null = Bed Platform length (2030).",
+      "urls": [],
+      "notes": "Set a number to override."
+    },
+    "mattress_clearance": {
+      "value": 0,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap between the Mattress and the platform edges / walls on every side, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "mattress_edge_radius": {
+      "value": 40,
+      "confidence": "modelling",
+      "source": "Bedroom fit-out: radius of the rounded Mattress edges (all 12 edges), mm.",
+      "urls": [],
+      "notes": "Modelling value; must be less than half of (thickness - crown)."
+    },
+    "mattress_crown": {
+      "value": 15,
+      "confidence": "modelling",
+      "source": "Bedroom fit-out: slight crown, extra height at the centre of the Mattress top above its edges, mm. Thickness at the edges = bed_mattress_thickness - crown.",
+      "urls": [],
+      "notes": "0 = flat top."
+    },
+    "pillow_width": {
+      "value": 730,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Pillow size across the bus, mm (Australian standard pillow 730 x 480).",
+      "urls": [],
+      "notes": "VERIFY against the pillows used. Shrinks automatically if pillow_count does not fit the mattress width."
+    },
+    "pillow_depth": {
+      "value": 480,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Pillow size along the bus, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "pillow_height": {
+      "value": 130,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Pillow loft (height), mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "pillow_edge_radius": {
+      "value": 55,
+      "confidence": "modelling",
+      "source": "Bedroom fit-out: Pillow edge radius (soft rounded look), mm. Clamped below half the height.",
+      "urls": [],
+      "notes": "Modelling value."
+    },
+    "pillow_head_gap": {
+      "value": 30,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap from the head (rear) end of the Mattress to the pillows, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_x": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out: x of both Reading Lamp wall plates, mm. null = middle of the solid side-wall strip between the last side window and the inner rear wall (clear of all glass).",
+      "urls": [],
+      "notes": "Set a number to override; the build reports whether the plate still clears the windows."
+    },
+    "reading_lamp_mount_z": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out: height of the Reading Lamp wall plates and arms above ground, mm. null = mattress top + reading_lamp_height_above_mattress.",
+      "urls": [],
+      "notes": "Set a number to override."
+    },
+    "reading_lamp_height_above_mattress": {
+      "value": 950,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp arm height above the mattress top, mm (used when reading_lamp_mount_z is null). Keeps the shade above shoulder height when sitting up.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_reach": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: arm reach from the side wall to the shade centre, mm. 300 puts the shade just outboard of the pillow centre.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_plate_diameter": {
+      "value": 80,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp wall plate diameter, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_plate_thickness": {
+      "value": 15,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp wall plate thickness, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_arm_diameter": {
+      "value": 12,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp arm and stem diameter, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_drop": {
+      "value": 60,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: stem drop from the arm to the top of the shade, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_shade_height": {
+      "value": 110,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp Shade height, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_shade_top_diameter": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp Shade top diameter, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "reading_lamp_shade_bottom_diameter": {
+      "value": 130,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Reading Lamp Shade bottom (open end) diameter, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_depth": {
+      "value": 350,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Wardrobe carcass depth along the bus from the aft face of the bedroom wall, mm (doors extra). Shallow: hang end-on with ~380 mm hangers, or fit shelves.",
+      "urls": [],
+      "notes": "VERIFY. If wardrobe_wall_fit is true the bedroom wall moves forward by any increase here (living floor shrinks 1.8 m2 per metre)."
+    },
+    "wardrobe_doorway_clearance": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap from the edge of the 850 bedroom doorway to the inner side of each Wardrobe, mm. Also stops the inner door handle reaching the doorway line when the door is open.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_wall_filler": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: fixed filler strip between the side wall and the outer door hinge, mm. Lets the outer door and its handle pass 90 degrees without hitting the side wall.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_panel_thickness": {
+      "value": 18,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Wardrobe carcass panel thickness, mm (check / report only).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_door_thickness": {
+      "value": 18,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Wardrobe door, top panel and base panel thickness, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_door_gap": {
+      "value": 3,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap between the two doors of a pair, and around the top/base panels, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_top_panel_height": {
+      "value": 150,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: fixed top panel above the doors, mm (from the carcass top down).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_ceiling_gap": {
+      "value": 10,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: gap between the Wardrobe top and the ceiling, mm. The carcass is also trimmed to the radiused ceiling corner.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_door_bottom_z": {
+      "value": null,
+      "confidence": "derived",
+      "source": "Bedroom fit-out: Wardrobe door bottom edge above ground, mm. null = above the rear arch housing top + wardrobe_arch_clearance where the door swing passes over the housing (it does at the default layout), else floor + wardrobe_plinth_height.",
+      "urls": [],
+      "notes": "The housings run x 4300-5500 at |y| 500-900, 400 high, right where the doors swing, so floor-length doors cannot open. A fixed Base Panel fills below the doors."
+    },
+    "wardrobe_plinth_height": {
+      "value": 100,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Base Panel height under the doors where no arch housing is in the swing, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_arch_clearance": {
+      "value": 20,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: clearance from the rear arch housing top to the door bottom edge, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_bed_clearance": {
+      "value": 60,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: minimum clearance from a fully swung Wardrobe door (or handle) to the foot of the Bed Platform / Mattress, mm. With wardrobe_wall_fit this sets the wall position. 60 also keeps the wardrobe front just forward of Side Window 4.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_handle_length": {
+      "value": 160,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Wardrobe door handle (vertical bar) length, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_handle_diameter": {
+      "value": 12,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: Wardrobe door handle bar diameter, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_handle_standoff": {
+      "value": 30,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: handle projection from the door face, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_handle_edge_offset": {
+      "value": 40,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: handle centre in from the meeting edge of each door, mm.",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_handle_height_above_floor": {
+      "value": 1050,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: handle centre height above the cabin floor, mm (clamped to the door).",
+      "urls": [],
+      "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "wardrobe_swing_margin": {
+      "value": 5,
+      "confidence": "nominal",
+      "source": "Bedroom fit-out: minimum gap kept between a swinging Wardrobe door or handle and the side wall, the doorway line and the bed; sets each door's OpenAngle limit, mm.",
+      "urls": [],
+      "notes": "VERIFY. 0 = allow touching."
     }
   },
   "au_market_notes": {
@@ -981,6 +1254,41 @@
       0.66,
       0.66,
       0.67
+    ],
+    "mattress_color": [
+      0.55,
+      0.62,
+      0.72
+    ],
+    "pillow_color": [
+      0.95,
+      0.94,
+      0.9
+    ],
+    "lamp_color": [
+      0.18,
+      0.18,
+      0.2
+    ],
+    "lamp_shade_color": [
+      0.93,
+      0.88,
+      0.74
+    ],
+    "wardrobe_color": [
+      0.76,
+      0.67,
+      0.53
+    ],
+    "wardrobe_door_color": [
+      0.84,
+      0.78,
+      0.67
+    ],
+    "handle_color": [
+      0.75,
+      0.75,
+      0.78
     ]
   },
   "export": {
@@ -1072,6 +1380,18 @@
       "unit": "fraction",
       "confidence": "nominal",
       "source": "Build-time position of both bedroom doors (bi-parting pair), 0 = closed, 1 = open. Lives on Bedroom Door Left."
+    },
+    "wardrobe_door_open_angle": {
+      "value": 0,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Build-time open angle of all four Wardrobe doors, 0 = closed. Each door has its own OpenAngle."
+    },
+    "wardrobe_door_max_angle": {
+      "value": 100,
+      "unit": "deg",
+      "confidence": "nominal",
+      "source": "Upper limit for Wardrobe door OpenAngle. The build lowers each door's limit further if the door or handle would hit the side wall, the doorway line or the bed (see usable_floor.json wardrobes.swing)."
     }
   },
   "layout_options": {
@@ -1103,6 +1423,18 @@
     "bed_over_boot": {
       "value": true,
       "source": "true = bed platform over the internal boot (boot forms the rear of the base, saves ~1000 mm of cabin). false = bed forward of the boot."
+    },
+    "wardrobes_enabled": {
+      "value": true,
+      "source": "Build the two Wardrobes against the aft face of the bedroom wall, either side of the doorway."
+    },
+    "wardrobe_wall_fit": {
+      "value": true,
+      "source": "true = move the bedroom wall forward (bedroom_wall_x null) so the wardrobe depth plus a 90+ degree door swing fits before the bed. false = keep the wall at the arch housings and make the wardrobe shallower to fit."
+    },
+    "pillow_count": {
+      "value": 2,
+      "source": "Number of pillows across the head of the bed (head at the rear)."
     }
   },
   "windows": {

@@ -55,9 +55,12 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 - `door_controls` sets the **build-time** door states. PNG/STEP/STL show those states, not whatever was
   last clicked in the GUI.
 - Fixed figures: 6860 L x 1995 W x 2550 H (high roof), wheelbase 3800, interior width 1800.
-  Living floor: 2750 x 1800, 4.63 m², from the cab zone (1500) to the bedroom wall's forward face (4250).
-  Bedroom: wall rear face at 4300, flush with the rear arch housings (shared `arch_housing_x0()`); 2462.5
-  long, bed over the boot, walkway 432.5 (short of 600, flagged), 0.43 m² clear. `usable_floor_*` = living.
+  Living floor: 2567 x 1800, 4.30 m², from the cab zone (1500) to the bedroom wall's forward face (4067).
+  Bedroom: wall rear face derived. It sits at the rear arch housings' forward face (4300, `arch_housing_x0()`),
+  or further forward when the Wardrobes need it (`wardrobe_wall_fit`). The default is 4117, 183 forward.
+  The bedroom is 2645.5 long, with the bed over the boot, a 615.5 walkway and 0.60 m² clear floor after the
+  arches and wardrobes. Before the wardrobes the figures were 4.63 m² living, a 432.5 walkway and 0.43 m².
+  `usable_floor_*` = living.
 - Null values mean "derived" (e.g. `entry_step_width`, `storage_*_runs`, `bedroom_wall_x`); set a number to
   override. Strings and booleans live in `layout_options`.
 
@@ -79,7 +82,10 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
   The renderer, colours and expressions key on **Names**, so relabelling in the GUI is harmless.
   Do not rename Names without updating macro 20 and the expressions.
 - Groups (Labels): Exterior, Roof, Floor, Glazing, Doors, Wheels, Wheel Arches, Cab, Cabin, Reference,
-  Storage, Bedroom. Entry Step is in Cabin.
+  Storage, Bedroom. Entry Step is in Cabin. Bedroom holds the sub-groups Bedroom Doors, Bed (Mattress,
+  Left/Right Pillow), Reading Lamps (Left/Right Reading Lamp + Shade) and Wardrobes (Left/Right Wardrobe,
+  ... Top Panel, ... Base Panel, ... Outer/Inner Door, ... Outer/Inner Handle). Names: BED_MATTRESS,
+  BED_PILLOW_L/R, BED_LAMP_L/R, BED_LAMP_SHADE_L/R, WRD_CARCASS_/TOP_/BASE_<L|R>, WRD_DOOR_/WRD_HANDLE_<L|R><O|I>.
 - Passenger Side Window (kerb cab glass) mirrors the Driver Door Glass profile, trimmed to keep an 80 mm
   pillar before the entry door (x 900–1440, z 1445–2120).
 - `display_label()` / `FIXED_LABELS` in macro 10 own the mapping. Add new objects there.
@@ -100,6 +106,7 @@ door's Placement.
 | Boot Lid | `OpenAngle` (deg) | 0–85 | 0, top-hinged, opens up and out |
 | Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
 | Bedroom Doors (group, in Bedroom) | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
+| Left/Right Wardrobe Outer/Inner Door | `OpenAngle` (deg) | 0–limit (95.5 at defaults) | 0, hinged on the front edge, opens aft toward the bed; handle follows |
 
 - Windows: each switchable window has a group GRP_WIN_* (in Glazing, Label = window name) holding
   GLZ_* "<window> Glass" and FIL_* "<window> Filler". The bool `Glazed` is on the GROUP; children's Visibility
@@ -179,6 +186,22 @@ door's Placement.
   `rounded_box_x()` with `rear_window_corner_radius`.
 - Skirt: `skirt_crease_z()` = `body_skirt_z` + `skirt_height`. **Skirt** (`TRM_SKIRT`) is a separate proud band;
   Body stays one solid. Storage flap tops sit on the crease; the bins stay 200 tall.
+
+## Bedroom fit-out notes (17 Nov 2026)
+
+- `wardrobe_y_layout()` / `wardrobe_layout()` are pure Python. `leaf_sweep()` rotates each door and its handle tip
+  in 0.5° steps. Each door's OpenAngle limit is the smaller of `wardrobe_door_max_angle` (100) and the angle at
+  which the door or handle comes within `wardrobe_swing_margin` of the side wall, the doorway line (|y| 425) or
+  the bed foot. Results go to `usable_floor.json` under `wardrobes.swing`.
+- The rear arch housings (x 4300–5500, |y| 500–900, top z 1100) lie under the door swing. The doors therefore
+  start at the arch top + 20 (z 1120), with a fixed Base Panel below. The carcass runs floor to ceiling and is
+  cut around the housing. Floor-length doors cannot open there.
+- The wardrobe front (4485) is fixed by bed_x0 - swing reach - `wardrobe_bed_clearance`, not by the depth.
+  Raising `wardrobe_depth` moves the wall forward and costs living floor (0.18 m² per 100 mm).
+  `wardrobe_wall_fit` false keeps the wall at 4300 and clamps the depth (to about 168 mm).
+- The wardrobes cover the aft part of Left/Right Side Window 3, which the wall already split.
+- Reading lamps sit on the solid side-wall strip between the last side window and the rear wall
+  (x 6545–6762.5), not on glass.
 
 ## Front notes (17 Nov 2026)
 

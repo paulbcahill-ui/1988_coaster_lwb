@@ -225,6 +225,19 @@ def draw_plan(params, V, computed, path):
                 f"\nplatform z{bd['platform_top_z']:.0f}{' over boot' if bd['over_boot'] else ''}",
                 ha="center", va="center", fontsize=6.5, color="#3a2a4a", zorder=8)
         dim_line(ax, (bd["wall_x"], W / 2), (L - wall, W / 2), f"bedroom {bd['bedroom_length']:.0f}", (0, 140), fontsize=7)
+        # Wardrobes (carcass + doors closed) with each door drawn open at 90 degrees, dashed.
+        wd = computed.get("wardrobes")
+        if wd:
+            for sg in (-1, 1):
+                y0 = min(sg * wd["yi"], sg * wd["y_wall"])
+                ax.add_patch(Rectangle((wd["x0"], y0), wd["front_x"] - wd["x0"], wd["width"], fc="#c8b28f",
+                                       ec="#5a4a30", lw=0.6, zorder=6))
+                for hinge in (wd["yi"], wd["yo"]):
+                    ax.plot([wd["front_x"], wd["front_x"] + wd["leaf_w"]], [sg * hinge, sg * hinge], color="#5a4a30",
+                            lw=0.8, ls="--", zorder=7)
+            ax.text(wd["x0"] + 10, 0, f"WARDROBES {wd['width']:.0f}W x {wd['depth']:.0f}D\ndoors {wd['leaf_w']:.0f} x2, "
+                    f"max {min(wd['limits_deg'].values()):.0f}°", ha="left", va="center", fontsize=5.5, color="#5a4a30",
+                    zorder=8)
 
     # Wheels
     def tyre(x, y, width=tw):
@@ -274,7 +287,9 @@ def draw_plan(params, V, computed, path):
     bed_line = ""
     if bdf:
         short = (f" (SHORT of {bdf['walkway_target']:.0f} target)" if bdf.get("walkway_short_mm", 0) > 0 else "")
-        bed_line = (f"Bedroom: wall rear face at x {bdf['wall_x']:.0f} (flush with rear arch housings), "
+        mv = bdf.get("wall_moved_forward_mm", 0) or 0
+        where = f"{mv:.0f} forward of the rear arch housings, for the wardrobes" if mv > 0.5 else "flush with rear arch housings"
+        bed_line = (f"Bedroom: wall rear face at x {bdf['wall_x']:.0f} ({where}), "
                     f"{bdf['bedroom_length']:.0f} long; walkway {bdf.get('walkway', 0):.0f}{short}; clear walkway floor "
                     f"{computed.get('bedroom_floor_area_m2', 0):.2f} m².  Dashed purple = underfloor storage bins.\n")
     note = (
