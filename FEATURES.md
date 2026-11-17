@@ -113,8 +113,9 @@ the flap. There is no lock state or property.
 | wardrobe_hanger_depth / bed_wardrobe_gap | 520 / 10 | nominal |
 | tyre_od | 780 | estimated |
 
-Only the overall dimensions and the wheelbase (6 params) are confirmed from Toyota sources. Of the rest, 112
-are nominal, 20 derived, 9 modelling values and 4 estimated. Everything not confirmed needs checking by tape
+Only the overall dimensions and the wheelbase (6 params) are confirmed from Toyota sources. The rest are tagged
+nominal (125), derived (20), modelling (9), derived_nominal (5), estimated (4), standard (2) or
+confirmed_adjacent (1). Everything not confirmed needs checking by tape
 measure on the bus. The model clamps the king mattress (1830) to the 1800 interior and reports the 30 mm
 overrun.
 
