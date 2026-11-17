@@ -19,7 +19,7 @@ Body (rebuilt 2026-11-17):
     with a single boolean cut. After all openings it is split by one plane
     (roof_split_z) into Body (walls, BODY_SHELL) and Roof (BODY_ROOF), so
     the two meet exactly.
-  * Openings: two-piece windscreen in the flat front, driver door (right),
+  * Openings: one-piece windscreen (no mullion) in the flat front, driver door (right),
     folding entry door (left), side window band, full-width rear window, and
     the boot opening in the lower rear panel. There is NO rear emergency door.
   * Boot is INTERNAL: top-hinged Boot Lid recessed in the rear panel from the
@@ -124,7 +124,7 @@ def vec(x, y, z):
 
 
 FAILED_OPS = []
-WINDOWS = []        # (glass object, filler object) per window, filled by add_glass_and_doors
+WINDOWS = []        # (window group, glass object, filler object) per switchable window
 INACTIVE = set()    # Names hidden at build time (glass of a solid window, filler of a glazed one)
 
 
@@ -740,12 +740,26 @@ def front_normal(D):
     return n
 
 
-def front_prism(D, y0, y1, z0, z1, d_out, depth):
-    """Prism on the raked front plane: a rectangle (y0..y1, z0..z1) offset d_out
-    outward along the face normal, extruded `depth` inward."""
+def rounded_rect_yz(y0, y1, z0, z1, rc, seg=8):
+    """Corner points of a (y, z) rectangle, corners rounded with radius rc (polygon arcs)."""
+    rc = max(0.0, min(rc, (y1 - y0) / 2.0 - 1.0, (z1 - z0) / 2.0 - 1.0))
+    if rc <= 0.5:
+        return [(y0, z0), (y1, z0), (y1, z1), (y0, z1)]
+    pts = []
+    for cy, cz, a0 in ((y1 - rc, z0 + rc, -90.0), (y1 - rc, z1 - rc, 0.0),
+                       (y0 + rc, z1 - rc, 90.0), (y0 + rc, z0 + rc, 180.0)):
+        for k in range(seg + 1):
+            a = math.radians(a0 + 90.0 * k / seg)
+            pts.append((cy + rc * math.cos(a), cz + rc * math.sin(a)))
+    return pts
+
+
+def front_prism(D, y0, y1, z0, z1, d_out, depth, rc=0.0):
+    """Prism on the raked front plane: a rectangle (y0..y1, z0..z1), corners optionally
+    rounded by rc, offset d_out outward along the face normal, extruded `depth` inward."""
     n = front_normal(D)
     pts = []
-    for y, z in ((y0, z0), (y1, z0), (y1, z1), (y0, z1)):
+    for y, z in rounded_rect_yz(y0, y1, z0, z1, rc):
         p = vec(front_x_at(D, z), y, z)
         pts.append(p + vec(n.x * d_out, n.y * d_out, n.z * d_out))
     face = Part.Face(Part.makePolygon(pts + [pts[0]]))
@@ -884,8 +898,7 @@ def windscreen_layout(V, D):
     z0 = Vv(V, "windscreen_sill_z")
     z1 = min(Vv(V, "windscreen_head_z"), D["H"] - D["r"] - 40.0)
     y_out = D["hw"] - D["r"] - Vv(V, "a_pillar_width")
-    y_in = Vv(V, "windscreen_mullion") / 2.0
-    return z0, z1, y_in, y_out
+    return z0, z1, y_out, Vv(V, "windscreen_corner_radius")
 
 
 def door_top(V, height_key, z_floor):
@@ -957,12 +970,11 @@ def punch_openings(shell, V):
     wall = D["wall"]
     floor = Vv(V, "floor_height")
 
-    # Two-piece windscreen in the flat front, between slim A-pillars and a centre mullion.
-    ws_z0, ws_z1, ws_yi, ws_yo = windscreen_layout(V, D)
-    for tag, s in (("L", s_left), ("R", s_right)):
-        y0, y1 = span(s, ws_yi, ws_yo)
-        cutter = front_prism(D, y0, y1, ws_z0, ws_z1, 40.0, 40.0 + wall + 60.0)
-        shell = try_cut(shell, cutter, f"windscreen_{tag}")
+    # One-piece windscreen in the flat raked front, between slim A-pillars (no mullion),
+    # gently radiused corners.
+    ws_z0, ws_z1, ws_yo, ws_rc = windscreen_layout(V, D)
+    shell = try_cut(shell, front_prism(D, -ws_yo, ws_yo, ws_z0, ws_z1, 40.0, 40.0 + wall + 60.0, ws_rc),
+                    "windscreen")
 
     # Folding entry door, LEFT / kerb side; opening runs down to the skirt (step well).
     ex = Vv(V, "entry_door_x")
@@ -1052,21 +1064,26 @@ def add_glass_and_doors(doc, V, colors, groups):
 
     def glass(name, shp, filler_shp=None, filler_col=None):
         """Glass pane plus (optionally) its solid filler: skin-thick, body colour, flush in the
-        opening. Which one shows is set by the pane's Glazed property (see window_controls)."""
-        gobj = add_shape(name, shp, groups["GRP_GLAZING"], gcol, galpha)
-        if filler_shp is not None:
-            fobj = add_shape(name.replace("GLZ_", "FIL_", 1), filler_shp, groups["GRP_GLAZING"],
-                             filler_col or dcol)
-            WINDOWS.append((gobj, fobj))
+        opening. A switchable window (one with a filler) gets its own window group GRP_WIN_*
+        inside Glazing holding both; the group's Glazed property picks which shows (see
+        window_controls). Without a filler (the Windscreen) the pane sits directly in Glazing."""
+        if filler_shp is None:
+            return add_shape(name, shp, groups["GRP_GLAZING"], gcol, galpha)
+        wg = group("GRP_WIN_" + name[4:])
+        try:
+            groups["GRP_GLAZING"].addObject(wg)
+        except Exception as exc:
+            print(f"  window group {wg.Name} not nested in Glazing: {exc}")
+        gobj = add_shape(name, shp, wg, gcol, galpha)
+        fobj = add_shape(name.replace("GLZ_", "FIL_", 1), filler_shp, wg, filler_col or dcol)
+        WINDOWS.append((wg, gobj, fobj))
         return gobj
 
-    # Two windscreen panes, recessed in the raked front.
-    ws_z0, ws_z1, ws_yi, ws_yo = windscreen_layout(V, D)
-    for tag, s in (("L", s_left), ("R", s_right)):
-        y0, y1 = span(s, ws_yi + clr, ws_yo - clr)
-        fy0, fy1 = span(s, ws_yi, ws_yo)
-        glass(f"GLZ_WINDSCREEN_{tag}", front_prism(D, y0, y1, ws_z0 + clr, ws_z1 - clr, -recess, glass_t),
-              front_prism(D, fy0, fy1, ws_z0, ws_z1, 0.0, wall))
+    # One windscreen pane, recessed in the raked front.
+    ws_z0, ws_z1, ws_yo, ws_rc = windscreen_layout(V, D)
+    # Always glazed: no Glazed switch, no filler, no window group, not counted.
+    glass("GLZ_WINDSCREEN",
+          front_prism(D, -(ws_yo - clr), ws_yo - clr, ws_z0 + clr, ws_z1 - clr, -recess, glass_t, ws_rc - clr))
 
     # Side windows.
     sill = Vv(V, "window_sill_z")
@@ -1421,13 +1438,16 @@ def make_bedroom_doors_operable(V, grp, leaves, signs, travel):
 def window_controls(doc, V, groups, computed):
     states = V.get("_windows", {})
     rows = []
-    for gobj, fobj in WINDOWS:
-        label = display_label(gobj.Name)
+    for wg, gobj, fobj in WINDOWS:
+        label = display_label(wg.Name)
         glazed = bool(states.get(label, True))
-        add_prop(gobj, "App::PropertyBool", "Glazed", "Window", glazed,
+        add_prop(wg, "App::PropertyBool", "Glazed", "Window", glazed,
                  "True = glass, False = solid skin (filler shown). Recompute after changing.")
-        n = gobj.Name
-        for obj, expr, on in ((gobj, f"{n}.Glazed ? 1 : 0", glazed), (fobj, f"{n}.Glazed ? 0 : 1", not glazed)):
+        n = wg.Name
+        # The group links its children (Group is a PropertyLinkList), so the children read the
+        # flag through href() hidden references: no dependency edge, no cycle.
+        for obj, expr, on in ((gobj, f"href({n}.Glazed) ? 1 : 0", glazed),
+                              (fobj, f"href({n}.Glazed) ? 0 : 1", not glazed)):
             try:
                 obj.Visibility = on
             except Exception:
@@ -1435,8 +1455,8 @@ def window_controls(doc, V, groups, computed):
             set_expr(obj, "Visibility", expr)
             if not on:
                 INACTIVE.add(obj.Name)
-        rows.append({"label": label, "glass": n, "filler": fobj.Name, "glazed": glazed})
-    names = [g.Name for g, _ in WINDOWS]
+        rows.append({"label": label, "group": n, "glass": gobj.Name, "filler": fobj.Name, "glazed": glazed})
+    names = [g.Name for g, _, _ in WINDOWS]
     glazed_n = sum(1 for r in rows if r["glazed"])
     computed["windows"] = {"per_window": rows, "glazed_count": glazed_n,
                            "solid_count": len(rows) - glazed_n, "total": len(rows)}
@@ -1444,7 +1464,8 @@ def window_controls(doc, V, groups, computed):
     if unknown:
         computed["windows"]["unknown_param_labels"] = unknown
         print(f"  WARNING params windows labels with no window: {unknown}")
-    # Separate counter object (not the Glazing group, which links the panes).
+    # Separate counter object. It reads the window groups' Glazed flags directly (nothing it
+    # reads depends on it, so plain references are fine).
     try:
         cnt = doc.addObject("App::FeaturePython", "WIN_COUNT")
     except Exception:
@@ -1496,35 +1517,67 @@ def add_bumpers_and_trim(V, colors, groups):
     bh = Vv(V, "bumper_height")
     grp = groups["GRP_EXTERIOR"]
 
-    # Full-width front bumper from x=0, sunk 50 mm into the front face.
+    # Full-width front bumper from x=0, sunk 50 mm into the front face (own height params).
     bw = W - 10.0
-    front = round_vertical_edges(box(D["x_front"] + 50.0, bw, bh, 0.0, -bw / 2.0, bz), 40.0)
-    add_shape("TRM_BUMPER_FRONT", front, grp, colors["bumper_color"])
+    fbz = opt(V, "front_bumper_z", bz)
+    fbh = opt(V, "front_bumper_height", bh)
+    front = round_vertical_edges(box(D["x_front"] + 50.0, bw, fbh, 0.0, -bw / 2.0, fbz), 40.0)
+    add_shape("TRM_BUMPER_FRONT", front, grp, colors.get("front_bumper_color", colors["bumper_color"]))
 
     # Rear bumper on the bumper line, ending at overall length (sunk 95 mm into the rear face).
     rear = round_vertical_edges(box(110.0, bw, bh, L - 110.0, -bw / 2.0, bz), 40.0)
     add_shape("TRM_BUMPER_REAR", rear, grp, colors["bumper_color"])
 
-    # Separate flat grille panel on the front face, low down above the bumper.
+    # Front face, top down (refs/ref_coaster_front.png): windscreen, black Windscreen Cowl,
+    # painted Front Panel, black grille band with twin headlamps and amber indicators, bumper.
+    fw = hw - D["r"] - 5.0                       # half width of the flat front face, less 5
     ws_z0 = Vv(V, "windscreen_sill_z")
-    gz0 = bz + bh + 30.0
-    gz1 = min(gz0 + 300.0, ws_z0 - 80.0)
-    gw = hw * 0.5
-    add_shape("TRM_GRILLE", front_prism(D, -gw, gw, gz0, gz1, 12.0, 32.0), grp, colors["grille_color"])
+    cz0 = ws_z0 - Vv(V, "windscreen_cowl_height")
+    add_shape("TRM_COWL", front_prism(D, -fw, fw, cz0, ws_z0, 8.0, 28.0), grp, colors["grille_color"])
+    gz0 = Vv(V, "grille_band_z")
+    gz1 = gz0 + Vv(V, "grille_band_height")
+    if cz0 - gz1 > 20.0:
+        add_shape("TRM_FRONT_PANEL", front_prism(D, -fw, fw, gz1, cz0, 3.0, 23.0), grp, colors["body_color"])
+    add_shape("TRM_GRILLE", front_prism(D, -fw, fw, gz0, gz1, 10.0, 30.0), grp, colors["grille_color"])
+    hy0, hy1 = Vv(V, "headlamp_inner_y"), Vv(V, "headlamp_outer_y")
+    gw = hy0 - 20.0                              # grille bars between the headlamps
     bars = []
     n_bars = 4
     for i in range(n_bars):
         zc = gz0 + (gz1 - gz0) * (i + 1) / (n_bars + 1)
-        bars.append(front_prism(D, -gw + 25.0, gw - 25.0, zc - 9.0, zc + 9.0, 18.0, 8.0))
+        bars.append(front_prism(D, -gw + 25.0, gw - 25.0, zc - 9.0, zc + 9.0, 16.0, 8.0))
     add_shape("TRM_GRILLE_BARS", Part.makeCompound(bars), grp, colors["rim_color"])
+    # Plain flat badge plate where 'TOYOTA' sits (lettering not modelled).
+    bdw, bdh = Vv(V, "grille_badge_width"), Vv(V, "grille_badge_height")
+    if bdw > 0.0 and bdh > 0.0:
+        add_shape("TRM_BADGE", front_prism(D, -bdw / 2.0, bdw / 2.0, gz1 - 15.0 - bdh, gz1 - 15.0, 20.0, 6.0),
+                  grp, colors["rim_color"])
 
-    # Headlamps either side of the grille, low on the face.
-    hz0 = gz0 + 20.0
-    hz1 = hz0 + 170.0
+    # Twin rectangular headlamps each side, amber indicators outboard, in the grille band.
+    hz0 = opt(V, "headlamp_z", gz0 + (gz1 - gz0 - Vv(V, "headlamp_height")) / 2.0)
+    hz1 = hz0 + Vv(V, "headlamp_height")
+    lgap = 20.0
+    lw = (hy1 - hy0 - lgap) / 2.0
+    iy0, iy1 = Vv(V, "indicator_inner_y"), min(Vv(V, "indicator_outer_y"), fw - 5.0)
+    iz0 = opt(V, "indicator_z", hz0)
+    iz1 = iz0 + Vv(V, "indicator_height")
+    amber = colors.get("indicator_color", (1.0, 0.55, 0.05))
     for tag, s in (("L", s_left), ("R", s_right)):
-        y0, y1 = span(s, gw + 60.0, hw - D["r"] - 15.0)
-        add_shape(f"LIT_HEAD_{tag}", front_prism(D, y0, y1, hz0, hz1, 14.0, 34.0), grp,
-                  colors["light_front_color"])
+        lamps = []
+        for k in range(2):
+            y0, y1 = span(s, hy0 + k * (lw + lgap), hy0 + k * (lw + lgap) + lw)
+            lamps.append(front_prism(D, y0, y1, hz0, hz1, 14.0, 34.0))
+        add_shape(f"LIT_HEAD_{tag}", Part.makeCompound(lamps), grp, colors["light_front_color"])
+        if iy1 - iy0 > 20.0:
+            y0, y1 = span(s, iy0, iy1)
+            add_shape(f"LIT_IND_{tag}", front_prism(D, y0, y1, iz0, iz1, 14.0, 34.0), grp, amber)
+
+    # Roof Brow: small overhang above the windscreen (separate piece; Body stays one solid).
+    ws_z1 = windscreen_layout(V, D)[1]
+    bo = Vv(V, "roof_brow_overhang")
+    if bo > 0.0:
+        add_shape("TRM_BROW", front_prism(D, -fw, fw, ws_z1 + 5.0, ws_z1 + 5.0 + Vv(V, "roof_brow_height"),
+                                          bo, bo + 40.0), groups["GRP_ROOF"], colors["body_color"])
 
     # Vertical tail-lamp clusters either side of (outboard of) the Boot Lid, proud of the rear face.
     B = boot_layout(V)
@@ -1772,17 +1825,17 @@ FIXED_LABELS = {
     "BODY_ROOF": "Roof Panel",          # qualified: the group is labelled "Roof"
     "BOOT_ENCLOSURE": "Boot",
     "REF_EXTERIOR_ENVELOPE": "Exterior Envelope",
-    "GLZ_WINDSCREEN_L": "Windscreen Left",
-    "GLZ_WINDSCREEN_R": "Windscreen Right",
-    "GLZ_REAR": "Rear Window",
-    "GLZ_PASSENGER": "Passenger Side Window",
-    "GLZ_SIDE_R_F": "Right Side Window Front",
+    "GLZ_WINDSCREEN": "Windscreen",
+    "TRM_COWL": "Windscreen Cowl",
+    "TRM_FRONT_PANEL": "Front Panel",
+    "TRM_BADGE": "Grille Badge",
+    "TRM_BROW": "Roof Brow",
+    "LIT_IND_L": "Left Indicator",
+    "LIT_IND_R": "Right Indicator",
     "TRM_SKIRT": "Skirt",
     "WIN_COUNT": "Window Count",
     "DR_ENTRY": "Entry Door",
-    "GLZ_ENTRY": "Entry Door Glass",
     "DR_DRIVER": "Driver Door",
-    "GLZ_DRIVER": "Driver Door Glass",
     "DR_BOOT_LID": "Boot Lid",
     "TRM_BUMPER_FRONT": "Front Bumper",
     "TRM_BUMPER_REAR": "Rear Bumper",
@@ -1819,21 +1872,40 @@ _WHEEL_POS = {"FL": "Front Left", "FR": "Front Right",
               "RR_OUT": "Rear Right Outer", "RR_IN": "Rear Right Inner"}
 
 
+# Window group Labels (GRP_WIN_<key>); the pane is "<label> Glass", the filler "<label> Filler".
+# FreeCAD keeps Labels unique by default, so bare "Glass"/"Filler" would become Glass001...;
+# the window name is the shortest qualifier that stays unique and readable in the tree.
+WINDOW_LABELS = {
+    "REAR": "Rear Window",
+    "PASSENGER": "Passenger Side Window",
+    "SIDE_R_F": "Right Side Window Front",
+    "ENTRY": "Entry Door Window",
+    "DRIVER": "Driver Door Window",
+}
+
+
 def display_label(name):
     """Plain proper-noun Label for an internal Name (Names stay safe identifiers)."""
     if name in GROUP_LABELS:
         return GROUP_LABELS[name]
     if name in FIXED_LABELS:
         return FIXED_LABELS[name]
-    if name.startswith("GLZ_SIDE_"):          # GLZ_SIDE_L_3 -> Left Side Window 3
-        _, _, side, idx = name.split("_", 3)
-        return f"{_SIDE.get(side, side)} Side Window {idx}"
+    if name.startswith("GRP_WIN_"):           # window group: GRP_WIN_SIDE_L_3 -> Left Side Window 3
+        key = name[8:]
+        if key in WINDOW_LABELS:
+            return WINDOW_LABELS[key]
+        if key.startswith("SIDE_"):
+            _, side, idx = key.split("_", 2)
+            return f"{_SIDE.get(side, side)} Side Window {idx}"
+        return key
+    if name.startswith("GLZ_"):               # GLZ_SIDE_L_3 -> Left Side Window 3 Glass
+        return display_label("GRP_WIN_" + name[4:]) + " Glass"
     if name.startswith("WHL_TYRE_"):
         return f"{_WHEEL_POS.get(name[9:], name[9:])} Tyre"
     if name.startswith("WHL_RIM_"):
         return f"{_WHEEL_POS.get(name[8:], name[8:])} Wheel"
     if name.startswith("FIL_"):               # FIL_SIDE_L_1 -> Left Side Window 1 Filler
-        return display_label("GLZ_" + name[4:]) + " Filler"
+        return display_label("GRP_WIN_" + name[4:]) + " Filler"
     if name.startswith("STO_BIN_T"):          # STO_BIN_T1 -> Through Storage Bin 1
         return f"Through Storage Bin {name[9:]}"
     for pre, word in (("STO_BIN_", "Storage Bin"), ("STO_FLAP_", "Storage Flap"), ("STO_LOCK_", "Lock Marker")):
@@ -2165,11 +2237,17 @@ def run():
     # Colour map used by the renderer (headless FCStd may not store ViewObject colours).
     color_by_prefix = {
         "BODY_": colors["body_color"],
+        "TRM_BUMPER_FRONT": colors.get("front_bumper_color", colors["bumper_color"]),
         "TRM_BUMPER": colors["bumper_color"],
         "TRM_GRILLE_BARS": colors["rim_color"],
         "TRM_GRILLE": colors["grille_color"],
         "TRM_STRIP": colors["rub_strip_color"],
         "LIT_HEAD": colors["light_front_color"],
+        "LIT_IND": colors.get("indicator_color", (1.0, 0.55, 0.05)),
+        "TRM_COWL": colors["grille_color"],
+        "TRM_FRONT_PANEL": colors["body_color"],
+        "TRM_BADGE": colors["rim_color"],
+        "TRM_BROW": colors["body_color"],
         "LIT_TAIL": colors["light_rear_color"],
         "GLZ_": list(colors["glass_color"]) + [colors.get("glass_alpha", 0.45)],
         "FIL_": colors["body_color"],

@@ -396,7 +396,7 @@ def draw_elevation(params, V, computed, path):
     ex, ew, eh = mm(V, "entry_door_x"), mm(V, "entry_door_width"), mm(V, "entry_door_height")
     e_top = min(floor + eh, whead)
     ax.add_patch(Rectangle((ex, skirt), ew, e_top - skirt, fc="#e9e6de", ec="#222", lw=0.8, zorder=4))
-    ax.add_patch(Rectangle((ex + 50, floor + 750), ew - 100, eh - 900, fc=win_fc("Entry Door Glass"), ec="#222", lw=0.6, zorder=5, alpha=0.8))
+    ax.add_patch(Rectangle((ex + 50, floor + 750), ew - 100, eh - 900, fc=win_fc("Entry Door Window"), ec="#222", lw=0.6, zorder=5, alpha=0.8))
     ax.text(ex + ew / 2, -160, "ENTRY DOOR", ha="center", va="top", fontsize=8, color="#1a4a7a")
 
     # Side windows: evenly pitched bays, as computed by macro 10 (same formula as fallback).
@@ -468,7 +468,9 @@ def draw_elevation(params, V, computed, path):
 
     # Bumpers
     bz, bh = mm(V, "bumper_z"), mm(V, "bumper_height")
-    ax.add_patch(Rectangle((-15, bz), 90, bh, fc="#2e2e32", ec="#111", lw=0.5, zorder=5))
+    fbz = V.get("front_bumper_z") if V.get("front_bumper_z") is not None else bz
+    fbh = V.get("front_bumper_height") if V.get("front_bumper_height") is not None else bh
+    ax.add_patch(Rectangle((-15, fbz), 90, fbh, fc="#a8a8aa", ec="#111", lw=0.5, zorder=5))
     ax.add_patch(Rectangle((L - 110, bz), 110, bh, fc="#2e2e32", ec="#111", lw=0.5, zorder=5))
 
     # Wheel arch scallops + wheels (near / kerb side)

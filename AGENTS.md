@@ -72,7 +72,7 @@ $fc = "C:\Program Files\FreeCAD_1.1.1-Windows-x86_64-py311"
 
 ## 6. Naming
 
-- Labels are plain proper nouns: Body, Roof Panel, Windscreen Left, Entry Door, Entry Door Glass,
+- Labels are plain proper nouns: Body, Roof Panel, Windscreen, Entry Door, Entry Door Window (group),
   Driver Door, Boot Lid, Boot, Front Left Wheel, Front Left Tyre, Rear Left Arch Housing, and so on.
   Add a qualifier only on a real clash: the solid is "Roof Panel" because the group is "Roof".
 - Internal Names stay stable (`BODY_SHELL`, `BODY_ROOF`, `DR_ENTRY`, `GLZ_*`, `WHL_*`, `GRP_*`, ...).
@@ -101,9 +101,11 @@ door's Placement.
 | Left/Right Storage Flap n | `OpenAngle` (deg) | 0–90 | 0, top-hinged; Lock Marker follows |
 | Bedroom Doors (group, in Bedroom) | `OpenFraction`, `SlideTravel` (mm) | 0–1, 0–1000 | 0, 425; drives both bi-parting leaves |
 
-- Windows: each pane (GLZ_*) has a bool `Glazed`; GLZ_* and its FIL_* filler have Visibility expressions
-  on it (output-property expressions, evaluated after recompute). Window Count (WIN_COUNT, in Glazing)
-  holds `GlazedCount`/`SolidCount`/`WindowTotal`. Build-time states come from params `windows` (by Label);
+- Windows: each switchable window has a group GRP_WIN_* (in Glazing, Label = window name) holding
+  GLZ_* "<window> Glass" and FIL_* "<window> Filler". The bool `Glazed` is on the GROUP; children's Visibility
+  uses `href(GRP_WIN_X.Glazed)` (a plain ref to the containing group is a cycle). Window Count (WIN_COUNT, in
+  Glazing) holds `GlazedCount`/`SolidCount`/`WindowTotal` (17). The Windscreen is fixed: no switch/filler/group.
+  Build-time states come from params `windows` (by group Label);
   exports/renders/dims skip the inactive object (INACTIVE set). Never toggle these with Space.
 - Bedroom Door Left/Right have no controls: their Placements read the Bedroom Doors group via `href()`
   hidden references. A plain reference to a containing group IS a cycle (Group is a link list); keep `href`.
@@ -177,3 +179,12 @@ door's Placement.
   `rounded_box_x()` with `rear_window_corner_radius`.
 - Skirt: `skirt_crease_z()` = `body_skirt_z` + `skirt_height`. **Skirt** (`TRM_SKIRT`) is a separate proud band;
   Body stays one solid. Storage flap tops sit on the crease; the bins stay 200 tall.
+
+## Front notes (17 Nov 2026)
+
+- Reference photo: `refs/ref_coaster_front.png`. The front face is built with `front_prism()` on the raked plane;
+  `rounded_rect_yz()` gives the rounded windscreen corners. All heights are params (windscreen_*, grille_band_*,
+  headlamp_*, indicator_*, front_bumper_*, roof_brow_*), nominal.
+- Roof Brow, Windscreen Cowl, Front Panel, Grille Badge and Indicators are separate solids; Body stays one solid.
+- Door glass and fillers sit in window groups in Glazing but follow their doors via Placement expressions;
+  never move them into Doors (one group per object) and never make them read their window group plainly.

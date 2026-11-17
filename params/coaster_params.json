@@ -453,18 +453,130 @@
       "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
     },
     "windscreen_sill_z": {
-      "value": 1120,
+      "value": 1450,
       "confidence": "nominal",
-      "source": "Nominal windscreen lower edge above ground.",
+      "source": "Windscreen lower edge above ground (about mid-front height). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
     },
     "windscreen_head_z": {
-      "value": 2420,
+      "value": 2360,
       "confidence": "nominal",
-      "source": "Nominal windscreen upper edge above ground.",
+      "source": "Windscreen upper edge above ground, just below the roof brow (capped at overall_height - body_edge_radius - 40). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "windscreen_corner_radius": {
+      "value": 80,
+      "confidence": "nominal",
+      "source": "Corner radius of the one-piece windscreen opening (gently radiused). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "windscreen_cowl_height": {
+      "value": 120,
+      "confidence": "nominal",
+      "source": "Black Windscreen Cowl strip directly below the windscreen sill (wipers park on it). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "grille_band_z": {
+      "value": 610,
+      "confidence": "nominal",
+      "source": "Bottom of the black grille band (just above the front bumper). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "grille_band_height": {
+      "value": 240,
+      "confidence": "nominal",
+      "source": "Height of the black grille band across the front; the painted Front Panel runs from its top up to the cowl. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "grille_badge_width": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Plain flat badge plate where 'TOYOTA' sits (lettering not modelled). 0 = none. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "grille_badge_height": {
+      "value": 45,
+      "confidence": "nominal",
+      "source": "Badge plate height. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "headlamp_inner_y": {
+      "value": 370,
+      "confidence": "nominal",
+      "source": "Inboard edge |y| of each twin rectangular headlamp pair. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "headlamp_outer_y": {
+      "value": 730,
+      "confidence": "nominal",
+      "source": "Outboard edge |y| of each twin headlamp pair (two lamps, 20 apart). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "headlamp_z": {
+      "value": null,
+      "confidence": "nominal",
+      "source": "Headlamp bottom above ground. null = centred in the grille band. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "headlamp_height": {
+      "value": 150,
+      "confidence": "nominal",
+      "source": "Headlamp height. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "indicator_inner_y": {
+      "value": 745,
+      "confidence": "nominal",
+      "source": "Inboard edge |y| of the amber indicators, outboard of the headlamps. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "indicator_outer_y": {
+      "value": 840,
+      "confidence": "nominal",
+      "source": "Outboard edge |y| of the indicators (clamped inside the flat front face). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "indicator_z": {
+      "value": null,
+      "confidence": "nominal",
+      "source": "Indicator bottom above ground. null = headlamp_z. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "indicator_height": {
+      "value": 150,
+      "confidence": "nominal",
+      "source": "Indicator height. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "roof_brow_overhang": {
+      "value": 40,
+      "confidence": "nominal",
+      "source": "Roof Brow: how far the small brow over the windscreen stands out from the front face. 0 = none. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "roof_brow_height": {
+      "value": 50,
+      "confidence": "nominal",
+      "source": "Roof Brow height, starting 5 above the windscreen head. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
     },
     "bumper_height": {
       "value": 280,
@@ -472,6 +584,20 @@
       "source": "Nominal bumper vertical depth.",
       "urls": [],
       "notes": "VERIFY BY TAPE MEASURE."
+    },
+    "front_bumper_z": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Front bumper underside above ground. null = bumper_z (rear bumper keeps bumper_z / bumper_height). Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
+    },
+    "front_bumper_height": {
+      "value": 300,
+      "confidence": "nominal",
+      "source": "Wide chrome/grey front bumper height (300-600). null = bumper_height. Estimated from refs/ref_coaster_front.png, scaled by the 2550 overall height / 1995 width.",
+      "urls": [],
+      "notes": "NOMINAL - VERIFY BY TAPE MEASURE."
     },
     "bumper_z": {
       "value": 300,
@@ -523,16 +649,9 @@
       "notes": "Used by macros/10_coaster_shell.py exterior body."
     },
     "a_pillar_width": {
-      "value": 60,
+      "value": 40,
       "confidence": "modelling",
-      "source": "Modelling value: flat A-pillar strip between the corner radius and the windscreen opening.",
-      "urls": [],
-      "notes": "Used by macros/10_coaster_shell.py exterior body."
-    },
-    "windscreen_mullion": {
-      "value": 50,
-      "confidence": "modelling",
-      "source": "Modelling value: centre divider width of the two-piece windscreen.",
+      "source": "Slim flat A-pillar strip between the front corner radius and the one-piece windscreen.",
       "urls": [],
       "notes": "Used by macros/10_coaster_shell.py exterior body."
     },
@@ -852,6 +971,16 @@
       0.25,
       0.25,
       0.26
+    ],
+    "indicator_color": [
+      1.0,
+      0.55,
+      0.05
+    ],
+    "front_bumper_color": [
+      0.66,
+      0.66,
+      0.67
     ]
   },
   "export": {
@@ -977,13 +1106,7 @@
     }
   },
   "windows": {
-    "_note": "Build-time Glazed state per window, keyed by plain Label. true = glass, false = solid skin (a body-colour filler fills the opening). Macro 10 sets each pane's Glazed property from this; toggling Glazed in the GUI + recompute swaps glass/filler live, but PNGs/STEP/STL follow these values. Missing labels default to true.",
-    "Windscreen Left": {
-      "value": true
-    },
-    "Windscreen Right": {
-      "value": true
-    },
+    "_note": "Build-time Glazed state per switchable window, keyed by the window GROUP's Label (each window has its own group in Glazing holding '<window> Glass' and '<window> Filler'). true = glass, false = solid skin. Macro 10 sets each group's Glazed property from this; toggling Glazed on the group in the GUI + recompute swaps glass/filler live, but PNGs/STEP/STL follow these values. Missing labels default to true. The Windscreen is always glazed and is not listed.",
     "Left Side Window 1": {
       "value": true
     },
@@ -1029,10 +1152,10 @@
     "Rear Window": {
       "value": true
     },
-    "Entry Door Glass": {
+    "Entry Door Window": {
       "value": true
     },
-    "Driver Door Glass": {
+    "Driver Door Window": {
       "value": true
     }
   }
